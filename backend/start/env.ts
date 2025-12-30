@@ -31,10 +31,4 @@ export default await Env.create(new URL('../', import.meta.url), {
 
    JWT_SECRET: Env.schema.string(),
    JWT_EXPIRES_IN: Env.schema.string.optional(),
-   JWT_ROTATION_INTERVAL: Env.schema.string.optional(),
-   JWT_GRACE_PERIOD: Env.schema.string.optional(),
-
-   SCREENSHOT_UPLOAD_PATH: Env.schema.string(),
-
-   CORS_ORIGIN: Env.schema.string(),
 })
