@@ -28,4 +28,4 @@ router
       router.post('/refresh', [AuthController, 'refresh'])
    })
    .prefix('/api/auth')
-   .use(middleware.auth)
+   .use(middleware.auth())
