@@ -67,7 +67,7 @@ export default class AuthController {
          const tokenResponse = await JwtService.generateToken(owner, ipAddress, userAgent)
 
          return response.created({
-            message: 'Company registered successfully',
+            message: 'Company and Admin registered successfully',
             data: tokenResponse,
          })
       } catch (error) {

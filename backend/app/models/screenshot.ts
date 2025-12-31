@@ -82,35 +82,35 @@ export default class Screenshot extends BaseModel {
    }
 
    // Static query helpers
-   // static async getGroupedScreenshots(userId: number, date: DateTime, intervalMinutes: number = 5) {
-   //    const startOfDay = date.startOf('day')
-   //    const endOfDay = date.endOf('day')
+   static async getGroupedScreenshots(userId: number, date: DateTime) {
+      const startOfDay = date.startOf('day')
+      const endOfDay = date.endOf('day')
 
-   //    const screenshots = await Screenshot.query()
-   //       .where('user_id', userId)
-   //       .whereBetween('captured_at', [startOfDay.toSQL(), endOfDay.toSQL()])
-   //       .orderBy('captured_at', 'asc')
+      const screenshots = await Screenshot.query()
+         .where('user_id', userId)
+         .whereBetween('captured_at', [startOfDay.toSQL()!, endOfDay.toSQL()!])
+         .orderBy('captured_at', 'asc')
 
-   //    // Group by hour and minute bucket
-   //    const grouped: Record<number, Record<number, Screenshot[]>> = {}
+      // Group by hour and minute bucket
+      const grouped: Record<number, Record<number, Screenshot[]>> = {}
 
-   //    screenshots.forEach((screenshot) => {
-   //       const hour = screenshot.hour
-   //       const bucket = screenshot.minuteBucket
+      screenshots.forEach((screenshot) => {
+         const hour = screenshot.hour
+         const bucket = screenshot.minuteBucket
 
-   //       if (!grouped[hour]) {
-   //          grouped[hour] = {}
-   //       }
+         if (!grouped[hour]) {
+            grouped[hour] = {}
+         }
 
-   //       if (!grouped[hour][bucket]) {
-   //          grouped[hour][bucket] = []
-   //       }
+         if (!grouped[hour][bucket]) {
+            grouped[hour][bucket] = []
+         }
 
-   //       grouped[hour][bucket].push(screenshot)
-   //    })
+         grouped[hour][bucket].push(screenshot)
+      })
 
-   //    return grouped
-   // }
+      return grouped
+   }
 
    static async getDateRange(userId: number): Promise<{ min: DateTime; max: DateTime } | null> {
       const result = await Screenshot.query()

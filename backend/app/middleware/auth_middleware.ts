@@ -51,30 +51,6 @@ export default class AuthMiddleware {
 }
 
 /**
- * Employee-only middleware
- * Must be used after AuthMiddleware
- */
-export class EmployeeMiddleware {
-   async handle(ctx: HttpContext, next: NextFn) {
-      const { response, auth } = ctx
-
-      if (!auth?.user) {
-         return response.unauthorized({
-            error: 'Authentication required',
-         })
-      }
-
-      if (!auth.user.isEmployee()) {
-         return response.forbidden({
-            error: 'Employee access required',
-         })
-      }
-
-      await next()
-   }
-}
-
-/**
  * Extend HttpContext to include auth property
  */
 declare module '@adonisjs/core/http' {

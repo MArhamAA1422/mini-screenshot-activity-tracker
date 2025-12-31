@@ -1,5 +1,6 @@
 import router from '@adonisjs/core/services/router'
 import { middleware } from './kernel.js'
+const ScreenshotsController = () => import('#controllers/screenshots_controller')
 const EmployeesController = () => import('#controllers/employees_controller')
 const AuthController = () => import('#controllers/auth_controller')
 
@@ -33,6 +34,33 @@ router
       router.delete('/employees/:id', [EmployeesController, 'destroy'])
 
       router.get('/employees/:id/stats', [EmployeesController, 'stats'])
+   })
+   .prefix('/api/admin')
+   .use(middleware.auth())
+   .use(middleware.admin())
+
+// Screenshot
+
+router
+   .group(() => {
+      router.post('/screenshots', [ScreenshotsController, 'upload'])
+      router.get('/screenshots', [ScreenshotsController, 'myScreenshots'])
+   })
+   .prefix('/api/employee')
+   .use(middleware.auth())
+   .use(middleware.employee())
+
+router
+   .group(() => {
+      router.get('/employees/:employeeId/screenshots', [
+         ScreenshotsController,
+         'getEmployeeScreenshots',
+      ])
+
+      router.get('/employees/:employeeId/screenshots/grouped', [
+         ScreenshotsController,
+         'getGroupedScreenshots',
+      ])
    })
    .prefix('/api/admin')
    .use(middleware.auth())
