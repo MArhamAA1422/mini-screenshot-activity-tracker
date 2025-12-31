@@ -1,14 +1,6 @@
-/*
-|--------------------------------------------------------------------------
-| Routes file
-|--------------------------------------------------------------------------
-|
-| The routes file is used for defining the HTTP routes.
-|
-*/
-
 import router from '@adonisjs/core/services/router'
 import { middleware } from './kernel.js'
+const EmployeesController = () => import('#controllers/employees_controller')
 const AuthController = () => import('#controllers/auth_controller')
 
 // Public routes
@@ -29,3 +21,19 @@ router
    })
    .prefix('/api/auth')
    .use(middleware.auth())
+
+// Employee management
+router
+   .group(() => {
+      router.get('/employees', [EmployeesController, 'index'])
+      router.get('/employees/search', [EmployeesController, 'search'])
+      router.get('/employees/:id', [EmployeesController, 'show'])
+
+      router.post('/employees', [EmployeesController, 'store'])
+      router.delete('/employees/:id', [EmployeesController, 'destroy'])
+
+      router.get('/employees/:id/stats', [EmployeesController, 'stats'])
+   })
+   .prefix('/api/admin')
+   .use(middleware.auth())
+   .use(middleware.admin())

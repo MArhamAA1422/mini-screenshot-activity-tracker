@@ -19,6 +19,6 @@ export const employeeSearchValidator = vine.compile(
    vine.object({
       search: vine.string().trim().minLength(1).optional(),
       page: vine.number().positive().optional(),
-      limit: vine.number().positive().withoutDecimals().range([1, 100]).optional(),
+      limit: vine.number().positive().withoutDecimals().range([1, 30]).optional(),
    })
 )

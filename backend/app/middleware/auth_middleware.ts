@@ -51,30 +51,6 @@ export default class AuthMiddleware {
 }
 
 /**
- * Admin-only middleware
- * Must be used after AuthMiddleware
- */
-export class AdminMiddleware {
-   async handle(ctx: HttpContext, next: NextFn) {
-      const { response, auth } = ctx
-
-      if (!auth?.user) {
-         return response.unauthorized({
-            error: 'Authentication required',
-         })
-      }
-
-      if (!auth.user.isAdmin()) {
-         return response.forbidden({
-            error: 'Admin access required',
-         })
-      }
-
-      await next()
-   }
-}
-
-/**
  * Employee-only middleware
  * Must be used after AuthMiddleware
  */
