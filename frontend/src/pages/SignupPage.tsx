@@ -1,24 +1,34 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Building2, AlertCircle, CheckCircle } from "lucide-react";
+import { Building2, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { validateSignup } from "../utils/validators";
 
-const PLANS = [
-  { id: 1, name: "Basic", price: 2, description: "Perfect for small teams" },
-  { id: 2, name: "Pro", price: 5, description: "Best for growing companies" },
-  {
-    id: 3,
-    name: "Enterprise",
-    price: 10,
-    description: "For large organizations",
-  },
-];
+interface Plan {
+  id: number;
+  name: string;
+  description: string;
+  pricePerEmployee: number;
+}
 
 export default function SignupPage() {
   const navigate = useNavigate();
   const { user, signup, isAdmin, isEmployee } = useAuth();
+
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [isLoadingPlans, setIsLoadingPlans] = useState(true);
+  const [plansError, setPlansError] = useState("");
+
+  const [formData, setFormData] = useState({
+    ownerName: "",
+    ownerEmail: "",
+    companyName: "",
+    planId: 0,
+    password: "",
+  });
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -30,15 +40,34 @@ export default function SignupPage() {
     }
   }, [user, navigate, isAdmin, isEmployee]);
 
-  const [formData, setFormData] = useState({
-    ownerName: "",
-    ownerEmail: "",
-    companyName: "",
-    planId: 1,
-    password: "",
-  });
-  const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  useEffect(() => {
+    fetchPlans();
+  }, []);
+
+  const fetchPlans = async () => {
+    setIsLoadingPlans(true);
+    setPlansError("");
+
+    try {
+      const response = await fetch("/api/plans");
+
+      if (!response.ok) {
+        throw new Error("Failed to load plans");
+      }
+
+      const data = await response.json();
+      setPlans(data.data);
+
+      if (data.data.length > 0) {
+        setFormData((prev) => ({ ...prev, planId: data.data[0].id }));
+      }
+    } catch (err: any) {
+      setPlansError("Failed to load pricing plans. Please refresh the page.");
+      console.error("Error fetching plans:", err);
+    } finally {
+      setIsLoadingPlans(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,6 +76,11 @@ export default function SignupPage() {
     const validationError = validateSignup(formData);
     if (validationError) {
       setError(validationError);
+      return;
+    }
+
+    if (!formData.planId) {
+      setError("Please select a plan");
       return;
     }
 
@@ -93,6 +127,22 @@ export default function SignupPage() {
               </div>
             )}
 
+            {plansError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm text-red-600">{plansError}</p>
+                  <button
+                    type="button"
+                    onClick={fetchPlans}
+                    className="text-sm text-blue-600 hover:text-blue-700 mt-2 font-medium"
+                  >
+                    Retry
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-900">
                 Company Details
@@ -118,6 +168,7 @@ export default function SignupPage() {
               </div>
             </div>
 
+            {/* Owner Details */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-900">
                 Owner Details
@@ -161,72 +212,101 @@ export default function SignupPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label
-                    htmlFor="password"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    Password *
-                  </label>
-                  <input
-                    id="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) =>
-                      setFormData({ ...formData, password: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                    disabled={isLoading}
-                  />
-                </div>
+              <div>
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Password *
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) =>
+                    setFormData({ ...formData, password: e.target.value })
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  disabled={isLoading}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Minimum 4 characters
+                </p>
               </div>
             </div>
 
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-900">
-                Select Plan
+                Select Plan *
               </h3>
 
-              <div className="grid grid-cols-3 gap-4">
-                {PLANS.map((plan) => (
+              {isLoadingPlans && (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
+                  <span className="ml-2 text-gray-600">Loading plans...</span>
+                </div>
+              )}
+
+              {!isLoadingPlans && plans.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {plans.map((plan) => (
+                    <button
+                      key={plan.id}
+                      type="button"
+                      onClick={() =>
+                        setFormData({ ...formData, planId: plan.id })
+                      }
+                      className={`p-4 border-2 rounded-lg transition ${
+                        formData.planId === plan.id
+                          ? "border-blue-600 bg-blue-50"
+                          : "border-gray-200 hover:border-blue-300"
+                      }`}
+                      disabled={isLoading}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-semibold text-gray-900">
+                          {plan.name}
+                        </span>
+                        {formData.planId === plan.id && (
+                          <CheckCircle className="w-5 h-5 text-blue-600" />
+                        )}
+                      </div>
+                      <div className="text-2xl font-bold text-blue-600 mb-1">
+                        ${plan.pricePerEmployee}
+                        <span className="text-sm text-gray-500">/employee</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {!isLoadingPlans && plans.length === 0 && !plansError && (
+                <div className="text-center py-8 text-gray-500">
+                  <p>No plans available at the moment.</p>
                   <button
-                    key={plan.id}
                     type="button"
-                    onClick={() =>
-                      setFormData({ ...formData, planId: plan.id })
-                    }
-                    className={`p-4 border-2 rounded-lg transition ${
-                      formData.planId === plan.id
-                        ? "border-blue-600 bg-blue-50"
-                        : "border-gray-200 hover:border-blue-300"
-                    }`}
-                    disabled={isLoading}
+                    onClick={fetchPlans}
+                    className="text-blue-600 hover:text-blue-700 mt-2 font-medium"
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-semibold text-gray-900">
-                        {plan.name}
-                      </span>
-                      {formData.planId === plan.id && (
-                        <CheckCircle className="w-5 h-5 text-blue-600" />
-                      )}
-                    </div>
-                    <div className="text-2xl font-bold text-blue-600 mb-1">
-                      ${plan.price}
-                      <span className="text-sm text-gray-500">/employee</span>
-                    </div>
-                    <p className="text-xs text-gray-600">{plan.description}</p>
+                    Refresh
                   </button>
-                ))}
-              </div>
+                </div>
+              )}
             </div>
 
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || isLoadingPlans || plans.length === 0}
               className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
-              {isLoading ? "Creating account..." : "Create Company Account"}
+              {isLoading ? (
+                <span className="flex items-center justify-center">
+                  <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                  Creating account...
+                </span>
+              ) : (
+                "Create Company Account"
+              )}
             </button>
           </form>
 

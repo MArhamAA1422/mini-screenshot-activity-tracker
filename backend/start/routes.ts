@@ -2,6 +2,8 @@ import router from '@adonisjs/core/services/router'
 import { middleware } from './kernel.js'
 
 // Public routes
+router.get('/api/plans', '#controllers/plans_controller.index')
+
 router
    .group(() => {
       router.post('/signup', '#controllers/auth_controller.signup')

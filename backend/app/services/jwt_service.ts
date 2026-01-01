@@ -19,7 +19,6 @@ interface TokenResponse {
    user: {
       id: number
       name: string
-      email: string
       role: string
       companyId: number
    }
@@ -61,7 +60,6 @@ export default class JwtService {
          user: {
             id: user.id,
             name: user.name,
-            email: user.email,
             role: user.role,
             companyId: user.companyId,
          },
@@ -96,7 +94,6 @@ export default class JwtService {
       needsRotation: boolean
    }> {
       const payload = this.verifyToken(token)
-
       const user = await User.query().where('id', payload.userId).preload('company').firstOrFail()
 
       const authTokens = await AuthToken.query()
@@ -123,7 +120,6 @@ export default class JwtService {
       }
 
       await matchedToken.updateLastUsed(ipAddress, userAgent)
-
       const needsRotation = matchedToken.needsRotation()
 
       return {
@@ -142,11 +138,8 @@ export default class JwtService {
       userAgent?: string
    ): Promise<TokenResponse> {
       const { user, authToken } = await this.validateToken(oldToken, ipAddress, userAgent)
-
       await authToken.markAsRotated()
-
       const newTokenResponse = await this.generateToken(user, ipAddress, userAgent)
-
       return newTokenResponse
    }
 
