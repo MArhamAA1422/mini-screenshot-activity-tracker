@@ -81,28 +81,6 @@ export default function EmployeeDashboardPage() {
             </div>
           </div>
         </div>
-
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="text-sm text-gray-600 mb-1">Total Screenshots</div>
-            <div className="text-3xl font-bold text-gray-900">0</div>
-            <div className="text-sm text-gray-500 mt-1">All time</div>
-          </div>
-
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="text-sm text-gray-600 mb-1">This Week</div>
-            <div className="text-3xl font-bold text-gray-900">0</div>
-            <div className="text-sm text-gray-500 mt-1">
-              Screenshots uploaded
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="text-sm text-gray-600 mb-1">Last Upload</div>
-            <div className="text-3xl font-bold text-gray-900">-</div>
-            <div className="text-sm text-gray-500 mt-1">Never</div>
-          </div>
-        </div>
       </main>
     </div>
   );

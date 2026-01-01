@@ -1,14 +1,17 @@
 import vine from '@vinejs/vine'
 import { DateTime } from 'luxon'
 
+/**
+ * Validator for screenshot upload
+ */
 export const uploadScreenshotValidator = vine.compile(
    vine.object({
       screenshot: vine
          .file({
-            size: '5mb',
-            extnames: ['jpg', 'jpeg', 'png', 'webp'],
+            size: '5mb', // Max 5MB per screenshot
+            extnames: ['jpg', 'jpeg', 'png', 'webp'], // Allowed image formats
          })
-         .optional(),
+         .optional(), // Optional because it might be in multipart
 
       capturedAt: vine
          .string()
@@ -22,10 +25,32 @@ export const uploadScreenshotValidator = vine.compile(
             }
             return parsed
          })
-         .optional(), // Optional, will use current time if not provided
+         .optional(), // Optional - will use current time if not provided
    })
 )
 
+/**
+ * Validator for bulk screenshot upload
+ */
+export const bulkUploadScreenshotValidator = vine.compile(
+   vine.object({
+      screenshots: vine
+         .array(
+            vine.file({
+               size: '5mb',
+               extnames: ['jpg', 'jpeg', 'png', 'webp'],
+            })
+         )
+         .minLength(1)
+         .maxLength(50), // Max 50 screenshots at once
+
+      capturedTimes: vine.array(vine.string()).optional(), // Array of ISO datetime strings matching screenshots array
+   })
+)
+
+/**
+ * Validator for getting screenshots (filters)
+ */
 export const getScreenshotsValidator = vine.compile(
    vine.object({
       date: vine
@@ -62,6 +87,24 @@ export const getScreenshotsValidator = vine.compile(
          .optional(),
 
       page: vine.number().positive().optional(),
-      limit: vine.number().positive().withoutDecimals().range([1, 30]).optional(),
+      limit: vine.number().positive().withoutDecimals().range([1, 100]).optional(),
+   })
+)
+
+/**
+ * Validator for deleting screenshot
+ */
+export const deleteScreenshotValidator = vine.compile(
+   vine.object({
+      id: vine.number().positive(),
+   })
+)
+
+/**
+ * Validator for grouped screenshots query
+ */
+export const groupedScreenshotsValidator = vine.compile(
+   vine.object({
+      date: vine.string().regex(/^\d{4}-\d{2}-\d{2}$/), // YYYY-MM-DD format
    })
 )

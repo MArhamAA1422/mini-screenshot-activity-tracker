@@ -1,24 +1,21 @@
 import router from '@adonisjs/core/services/router'
 import { middleware } from './kernel.js'
-const ScreenshotsController = () => import('#controllers/screenshots_controller')
-const EmployeesController = () => import('#controllers/employees_controller')
-const AuthController = () => import('#controllers/auth_controller')
 
 // Public routes
 router
    .group(() => {
-      router.post('/signup', [AuthController, 'signup'])
-      router.post('/login', [AuthController, 'login'])
+      router.post('/signup', '#controllers/auth_controller.signup')
+      router.post('/login', '#controllers/auth_controller.login')
    })
    .prefix('/api/auth')
 
 // Protected routes
 router
    .group(() => {
-      router.get('/me', [AuthController, 'me'])
-      router.post('/logout', [AuthController, 'logout'])
-      router.post('/logout-all', [AuthController, 'logoutAll'])
-      router.post('/refresh', [AuthController, 'refresh'])
+      router.get('/me', '#controllers/auth_controller.me')
+      router.post('/logout', '#controllers/auth_controller.logout')
+      router.post('/logout-all', '#controllers/auth_controller.logoutAll')
+      router.post('/refresh', '#controllers/auth_controller.refresh')
    })
    .prefix('/api/auth')
    .use(middleware.auth())
@@ -26,25 +23,25 @@ router
 // Employee management
 router
    .group(() => {
-      router.get('/employees', [EmployeesController, 'index'])
-      router.get('/employees/search', [EmployeesController, 'search'])
-      router.get('/employees/:id', [EmployeesController, 'show'])
+      router.get('/employees', '#controllers/employees_controller.index')
+      router.get('/employees/search', '#controllers/employees_controller.search')
+      router.get('/employees/:id', '#controllers/employees_controller.show')
 
-      router.post('/employees', [EmployeesController, 'store'])
-      router.delete('/employees/:id', [EmployeesController, 'destroy'])
+      router.post('/employees', '#controllers/employees_controller.store')
+      router.delete('/employees/:id', '#controllers/employees_controller.destroy')
 
-      router.get('/employees/:id/stats', [EmployeesController, 'stats'])
+      router.get('/employees/:id/stats', '#controllers/employees_controller.stats')
    })
    .prefix('/api/admin')
    .use(middleware.auth())
    .use(middleware.admin())
 
 // Screenshot
-
 router
    .group(() => {
-      router.post('/screenshots', [ScreenshotsController, 'upload'])
-      router.get('/screenshots', [ScreenshotsController, 'myScreenshots'])
+      router.post('/screenshots', '#controllers/screenshots_controller.upload')
+      router.get('/screenshots', '#controllers/screenshots_controller.myScreenshots')
+      router.get('/screenshots/file/*', '#controllers/screenshots_controller.serveScreenshotFile')
    })
    .prefix('/api/employee')
    .use(middleware.auth())
@@ -52,15 +49,17 @@ router
 
 router
    .group(() => {
-      router.get('/employees/:employeeId/screenshots', [
-         ScreenshotsController,
-         'getEmployeeScreenshots',
-      ])
+      router.get(
+         '/employees/:employeeId/screenshots',
+         '#controllers/screenshots_controller.getEmployeeScreenshots'
+      )
 
-      router.get('/employees/:employeeId/screenshots/grouped', [
-         ScreenshotsController,
-         'getGroupedScreenshots',
-      ])
+      router.get(
+         '/employees/:employeeId/screenshots/grouped',
+         '#controllers/screenshots_controller.getGroupedScreenshots'
+      )
+
+      router.get('/screenshots/file/*', '#controllers/screenshots_controller.serveScreenshotFile')
    })
    .prefix('/api/admin')
    .use(middleware.auth())
