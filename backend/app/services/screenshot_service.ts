@@ -1,6 +1,6 @@
 import { MultipartFile } from '@adonisjs/core/bodyparser'
 import { DateTime } from 'luxon'
-import { mkdir, unlink, stat } from 'node:fs/promises'
+import { mkdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { cuid } from '@adonisjs/core/helpers'
 import app from '@adonisjs/core/services/app'

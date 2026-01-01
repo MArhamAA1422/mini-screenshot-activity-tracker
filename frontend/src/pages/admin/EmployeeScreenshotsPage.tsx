@@ -48,9 +48,8 @@ export default function EmployeeScreenshotsPage() {
   const [data, setData] = useState<GroupedData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  const [expandedGroups, setExpandedGroups] = useState<Set<any>>(new Set());
+  const [expandedGroups, setExpandedGroups] = useState<Set<unknown>>(new Set());
 
-  // Track image blob URLs and loading/error states
   const [imageBlobUrls, setImageBlobUrls] = useState<Map<number, string>>(
     new Map()
   );
@@ -64,12 +63,12 @@ export default function EmployeeScreenshotsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employeeId, selectedDate]);
 
-  useEffect(() => {
-    return () => {
-      // Revoke all blob URLs to free memory
-      imageBlobUrls.forEach((url) => URL.revokeObjectURL(url));
-    };
-  }, [imageBlobUrls]);
+  //   useEffect(() => {
+  //     return () => {
+  //       // Revoke all blob URLs to free memory
+  //       imageBlobUrls.forEach((url) => URL.revokeObjectURL(url));
+  //     };
+  //   }, [imageBlobUrls]);
 
   const fetchScreenshots = async () => {
     setIsLoading(true);
