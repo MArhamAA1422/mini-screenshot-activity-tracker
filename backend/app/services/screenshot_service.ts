@@ -84,10 +84,8 @@ export default class ScreenshotService {
       // Ensure directory exists
       await mkdir(fullPath, { recursive: true })
 
-      // Full file path
       const filePath = join(fullPath, fileName)
 
-      // Move/write file
       await file.move(fullPath, {
          name: fileName,
          overwrite: false,
@@ -97,7 +95,6 @@ export default class ScreenshotService {
          throw new Error(`File upload failed: ${JSON.stringify(file.errors)}`)
       }
 
-      // Get file stats
       const stats = await stat(filePath)
 
       return {
@@ -114,13 +111,6 @@ export default class ScreenshotService {
     */
    static getFullPath(filePath: string): string {
       return join(this.getStoragePath(), filePath)
-   }
-
-   /**
-    * Get public URL for screenshot
-    */
-   static getPublicUrl(filePath: string): string {
-      return `/screenshots/${filePath}`
    }
 
    /**

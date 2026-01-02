@@ -173,35 +173,40 @@ export default class ScreenshotsController {
     * GET /api/employee/screenshots
     */
    async myScreenshots({ request, response, auth }: HttpContext) {
-      const employee = auth?.user!
-      const validated = await request.validateUsing(getScreenshotsValidator)
+      try {
+         const employee = auth?.user!
+         const { page = 1, limit = 50, date } = await request.validateUsing(getScreenshotsValidator)
 
-      const page = validated.page || 1
-      const limit = validated.limit || 50
-      const date = validated.date
+         const query = Screenshot.query()
+            .where('user_id', employee.id)
+            .orderBy('captured_at', 'desc')
 
-      const query = Screenshot.query().where('user_id', employee.id).orderBy('captured_at', 'desc')
+         if (date) {
+            const startOfDay = date.startOf('day')
+            const endOfDay = date.endOf('day')
+            query.whereBetween('captured_at', [startOfDay.toSQL()!, endOfDay.toSQL()!])
+         }
 
-      if (date) {
-         const startOfDay = date.startOf('day')
-         const endOfDay = date.endOf('day')
-         query.whereBetween('captured_at', [startOfDay.toSQL()!, endOfDay.toSQL()!])
+         const screenshots = await query.paginate(page, limit)
+
+         return response.ok({
+            data: screenshots.all().map((s) => ({
+               id: s.id,
+               filePath: s.filePath,
+               fileUrl: s.getFileUrl(employee.role),
+               capturedAt: s.capturedAt.toISO(),
+               uploadedAt: s.uploadedAt.toISO(),
+               hour: s.hour,
+               minuteBucket: s.minuteBucket,
+            })),
+            meta: screenshots.getMeta(),
+         })
+      } catch (error) {
+         return response.internalServerError({
+            error: 'Error in getting your screenshots',
+            detailsError: error,
+         })
       }
-
-      const screenshots = await query.paginate(page, limit)
-
-      return response.ok({
-         data: screenshots.all().map((s) => ({
-            id: s.id,
-            filePath: s.filePath,
-            fileUrl: s.getFileUrl(employee.role),
-            capturedAt: s.capturedAt.toISO(),
-            uploadedAt: s.uploadedAt.toISO(),
-            hour: s.hour,
-            minuteBucket: s.minuteBucket,
-         })),
-         meta: screenshots.getMeta(),
-      })
    }
 
    /**
@@ -214,7 +219,7 @@ export default class ScreenshotsController {
       const validated = await request.validateUsing(getScreenshotsValidator)
 
       const page = validated.page || 1
-      const limit = validated.limit || 100
+      const limit = validated.limit || 30
       const date = validated.date
 
       const employee = await db
@@ -230,33 +235,41 @@ export default class ScreenshotsController {
          })
       }
 
-      const query = Screenshot.query().where('user_id', employeeId).orderBy('captured_at', 'desc')
+      try {
+         const query = Screenshot.query()
+            .where('user_id', employeeId)
+            .orderBy('captured_at', 'desc')
 
-      if (date) {
-         const startOfDay = date.startOf('day')
-         const endOfDay = date.endOf('day')
-         query.whereBetween('captured_at', [startOfDay.toSQL()!, endOfDay.toSQL()!])
+         if (date) {
+            const startOfDay = date.startOf('day')
+            const endOfDay = date.endOf('day')
+            query.whereBetween('captured_at', [startOfDay.toSQL()!, endOfDay.toSQL()!])
+         }
+
+         const screenshots = await query.paginate(page, limit)
+
+         return response.ok({
+            employee: {
+               id: employee.id,
+               name: employee.name,
+            },
+            data: screenshots.all().map((s) => ({
+               id: s.id,
+               filePath: s.filePath,
+               fileUrl: s.getFileUrl('admin'),
+               capturedAt: s.capturedAt.toISO(),
+               uploadedAt: s.uploadedAt.toISO(),
+               hour: s.hour,
+               minuteBucket: s.minuteBucket,
+            })),
+            meta: screenshots.getMeta(),
+         })
+      } catch (error) {
+         return response.internalServerError({
+            error: 'Error in getting screenshots',
+            detailsError: error,
+         })
       }
-
-      const screenshots = await query.paginate(page, limit)
-
-      return response.ok({
-         employee: {
-            id: employee.id,
-            name: employee.name,
-            email: employee.email,
-         },
-         data: screenshots.all().map((s) => ({
-            id: s.id,
-            filePath: s.filePath,
-            fileUrl: s.getFileUrl('admin'),
-            capturedAt: s.capturedAt.toISO(),
-            uploadedAt: s.uploadedAt.toISO(),
-            hour: s.hour,
-            minuteBucket: s.minuteBucket,
-         })),
-         meta: screenshots.getMeta(),
-      })
    }
 
    /**
@@ -264,110 +277,79 @@ export default class ScreenshotsController {
     * GET /api/admin/employees/:employeeId/screenshots/grouped
     */
    async getGroupedScreenshots({ params, request, response, auth }: HttpContext) {
-      const admin = auth?.user!
-      const employeeId = params.employeeId
-      const dateString = request.input('date')
+      try {
+         const admin = auth?.user!
+         const employeeId = params.employeeId
+         const dateString = request.input('date')
 
-      if (!dateString) {
-         return response.badRequest({
-            error: 'Date parameter is required (format: YYYY-MM-DD)',
-         })
-      }
-
-      const date = DateTime.fromISO(dateString)
-      if (!date.isValid) {
-         return response.badRequest({
-            error: 'Invalid date format. Use YYYY-MM-DD',
-         })
-      }
-
-      const employee = await db
-         .from('users')
-         .where('id', employeeId)
-         .where('company_id', admin.companyId)
-         .where('role', 'employee')
-         .first()
-
-      if (!employee) {
-         return response.notFound({
-            error: 'Employee not found',
-         })
-      }
-
-      const grouped = await Screenshot.getGroupedScreenshots(employeeId, date)
-
-      const groupedArray: any[] = []
-
-      for (const [hour, buckets] of Object.entries(grouped)) {
-         for (const [bucket, screenshots] of Object.entries(buckets)) {
-            groupedArray.push({
-               hour: Number.parseInt(hour),
-               minuteBucket: Number.parseInt(bucket),
-               timeRange: `${hour.toString().padStart(2, '0')}:${bucket.toString().padStart(2, '0')} - ${hour.toString().padStart(2, '0')}:${(Number.parseInt(bucket) + (employee.screenshot_interval || 10)).toString().padStart(2, '0')}`,
-               count: screenshots.length,
-               screenshots: screenshots.map((s) => ({
-                  id: s.id,
-                  filePath: s.filePath,
-                  fileUrl: s.getFileUrl('admin'),
-                  capturedAt: s.capturedAt.toISO(),
-               })),
+         if (!dateString) {
+            return response.badRequest({
+               error: 'Date parameter is required (format: YYYY-MM-DD)',
             })
          }
+
+         const date = DateTime.fromISO(dateString)
+         if (!date.isValid) {
+            return response.badRequest({
+               error: 'Invalid date format. Use YYYY-MM-DD',
+            })
+         }
+
+         const employee = await db
+            .from('users')
+            .where('id', employeeId)
+            .where('company_id', admin.companyId)
+            .where('role', 'employee')
+            .first()
+
+         if (!employee) {
+            return response.notFound({
+               error: 'Employee not found',
+            })
+         }
+
+         const grouped = await Screenshot.getGroupedScreenshots(employeeId, date)
+
+         const groupedArray: any[] = []
+
+         for (const [hour, buckets] of Object.entries(grouped)) {
+            for (const [bucket, screenshots] of Object.entries(buckets)) {
+               groupedArray.push({
+                  hour: Number.parseInt(hour),
+                  minuteBucket: Number.parseInt(bucket),
+                  timeRange: `${hour.toString().padStart(2, '0')}:${bucket.toString().padStart(2, '0')} - ${hour.toString().padStart(2, '0')}:${(Number.parseInt(bucket) + (employee.screenshot_interval || 10)).toString().padStart(2, '0')}`,
+                  count: screenshots.length,
+                  screenshots: screenshots.map((s) => ({
+                     id: s.id,
+                     filePath: s.filePath,
+                     fileUrl: s.getFileUrl('admin'),
+                     capturedAt: s.capturedAt.toISO(),
+                  })),
+               })
+            }
+         }
+
+         groupedArray.sort((a, b) => {
+            if (a.hour !== b.hour) return a.hour - b.hour
+            return a.minuteBucket - b.minuteBucket
+         })
+
+         return response.ok({
+            employee: {
+               id: employee.id,
+               name: employee.name,
+               screenshotInterval: employee.screenshot_interval,
+            },
+            date: date.toISODate(),
+            totalScreenshots: groupedArray.reduce((sum, g) => sum + g.count, 0),
+            groups: groupedArray,
+         })
+      } catch (error) {
+         return response.internalServerError({
+            error: 'Error in getting screenshots',
+         })
       }
-
-      groupedArray.sort((a, b) => {
-         if (a.hour !== b.hour) return a.hour - b.hour
-         return a.minuteBucket - b.minuteBucket
-      })
-
-      return response.ok({
-         employee: {
-            id: employee.id,
-            name: employee.name,
-            screenshotInterval: employee.screenshot_interval,
-         },
-         date: date.toISODate(),
-         totalScreenshots: groupedArray.reduce((sum, g) => sum + g.count, 0),
-         groups: groupedArray,
-      })
    }
-
-   /**
-    * Get screenshot statistics (Admin only)
-    * GET /api/admin/screenshots/stats
-    */
-   // async stats({ request, response, auth }: HttpContext) {
-   //    const admin = auth?.user!
-   //    const startDateString = request.input('startDate')
-   //    const endDateString = request.input('endDate')
-
-   //    let startDate = DateTime.now().minus({ days: 30 })
-   //    let endDate = DateTime.now()
-
-   //    if (startDateString) {
-   //       startDate = DateTime.fromISO(startDateString)
-   //       if (!startDate.isValid) {
-   //          return response.badRequest({ error: 'Invalid startDate' })
-   //       }
-   //    }
-
-   //    if (endDateString) {
-   //       endDate = DateTime.fromISO(endDateString)
-   //       if (!endDate.isValid) {
-   //          return response.badRequest({ error: 'Invalid endDate' })
-   //       }
-   //    }
-
-   //    const stats = await Screenshot.getCompanyStats(admin.companyId, startDate, endDate)
-
-   //    return response.ok({
-   //       dateRange: {
-   //          start: startDate.toISODate(),
-   //          end: endDate.toISODate(),
-   //       },
-   //       stats,
-   //    })
-   // }
 
    /**
     * Serve screenshot file (authenticated)

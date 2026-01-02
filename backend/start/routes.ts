@@ -27,12 +27,9 @@ router
    .group(() => {
       router.get('/employees', '#controllers/employees_controller.index')
       router.get('/employees/search', '#controllers/employees_controller.search')
-      router.get('/employees/:id', '#controllers/employees_controller.show')
 
       router.post('/employees', '#controllers/employees_controller.store')
       router.delete('/employees/:id', '#controllers/employees_controller.destroy')
-
-      router.get('/employees/:id/stats', '#controllers/employees_controller.stats')
    })
    .prefix('/api/admin')
    .use(middleware.auth())

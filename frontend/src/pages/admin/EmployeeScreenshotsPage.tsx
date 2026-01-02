@@ -31,7 +31,7 @@ interface GroupedData {
   employee: {
     id: number;
     name: string;
-    screenshotInterval: number;
+    screenshotInterval?: number;
   };
   date: string;
   totalScreenshots: number;

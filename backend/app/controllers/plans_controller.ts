@@ -18,9 +18,8 @@ export default class PlansController {
             })),
          })
       } catch (error) {
-         console.error('Error fetching plans:', error)
          return response.internalServerError({
-            error: 'Failed to fetch plans',
+            error: `Failed to fetch plans, ${error}`,
          })
       }
    }

@@ -18,18 +18,16 @@ export default class AuthController {
       const trx = await db.transaction()
 
       try {
-         const existingUser = await User.findBy('email', payload.ownerEmail)
-         if (existingUser) {
+         const isDuplicateEmail = await User.findBy('email', payload.ownerEmail)
+         if (isDuplicateEmail) {
             return response.conflict({
                error: 'Email already registered',
             })
          }
 
-         const plan = await Plan.find(payload.planId)
+         let plan = await Plan.find(payload.planId)
          if (!plan) {
-            return response.notFound({
-               error: 'Selected plan not found',
-            })
+            plan = await Plan.query().first()
          }
 
          const company = await Company.create(
@@ -41,7 +39,6 @@ export default class AuthController {
             { client: trx }
          )
 
-         // Create owner (admin) user
          const owner = await User.create(
             {
                companyId: company.id,
@@ -56,12 +53,10 @@ export default class AuthController {
 
          await trx.commit()
 
-         // Reload with relationships
          await owner.load('company', (query) => {
             query.preload('plan')
          })
 
-         // Generate JWT token
          const ipAddress = request.ip()
          const userAgent = request.header('user-agent')
          const tokenResponse = await JwtService.generateToken(owner, ipAddress, userAgent)
