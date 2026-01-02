@@ -5,8 +5,15 @@ import hash from '@adonisjs/core/services/hash'
 import Company from './company.js'
 import AuthToken from './auth_token.js'
 import Screenshot from './screenshot.js'
+import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
+import { compose } from '@adonisjs/core/helpers'
 
-export default class User extends BaseModel {
+const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
+   uids: ['email'],
+   passwordColumnName: 'password',
+})
+
+export default class User extends compose(BaseModel, AuthFinder) {
    @column({ isPrimary: true })
    declare id: number
 
@@ -40,19 +47,6 @@ export default class User extends BaseModel {
    @hasMany(() => Screenshot)
    declare screenshots: HasMany<typeof Screenshot>
 
-   // Hooks
-   @beforeSave()
-   static async hashPassword(user: User) {
-      if (user.$dirty.password) {
-         user.password = await hash.make(user.password)
-      }
-   }
-
-   // Helper methods
-   async verifyPassword(plainPassword: string): Promise<boolean> {
-      return hash.verify(this.password, plainPassword)
-   }
-
    isAdmin(): boolean {
       return this.role === 'admin'
    }
@@ -73,24 +67,6 @@ export default class User extends BaseModel {
          .orderBy('created_at', 'desc')
    }
 
-   // async getScreenshotStats(startDate: DateTime, endDate: DateTime) {
-   //    const result = await Screenshot.query()
-   //       .where('user_id', this.id)
-   //       .whereBetween('captured_at', [startDate.toSQL(), endDate.toSQL()])
-   //       .count('* as total')
-   //       .groupBy('user_id')
-   //       .first()
-
-   //    return {
-   //       total_screenshots: result ? Number(result.$extras.total) : 0,
-   //       date_range: {
-   //          start: startDate.toISODate(),
-   //          end: endDate.toISODate(),
-   //       },
-   //    }
-   // }
-
-   // Serialization
    serializeExtras() {
       return {
          company_name: this.$extras.company_name,

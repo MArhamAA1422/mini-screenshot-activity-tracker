@@ -78,21 +78,9 @@ export default class AuthController {
    async login({ request, response }: HttpContext) {
       const payload = await request.validateUsing(loginValidator)
 
-      const user = await User.query()
-         .where('email', payload.email)
-         .preload('company', (query) => {
-            query.preload('plan')
-         })
-         .first()
+      const user = await User.verifyCredentials(payload.email, payload.password)
 
       if (!user) {
-         return response.unauthorized({
-            error: 'Invalid credentials',
-         })
-      }
-
-      const isPasswordValid = await user.verifyPassword(payload.password)
-      if (!isPasswordValid) {
          return response.unauthorized({
             error: 'Invalid credentials',
          })
