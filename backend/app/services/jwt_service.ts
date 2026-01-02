@@ -9,8 +9,6 @@ interface JwtPayload {
    userId: number
    role: 'admin' | 'employee'
    companyId: number
-   iat?: number
-   exp?: number
 }
 
 interface TokenResponse {
@@ -93,39 +91,46 @@ export default class JwtService {
       authToken: AuthToken
       needsRotation: boolean
    }> {
-      const payload = this.verifyToken(token)
-      const user = await User.query().where('id', payload.userId).preload('company').firstOrFail()
+      try {
+         const payload = this.verifyToken(token)
+         const user = await User.query()
+            .where('id', payload.userId)
+            .preload('company')
+            .firstOrFail()
 
-      const authTokens = await AuthToken.query()
-         .where('user_id', user.id)
-         .where('is_revoked', false)
-         .orderBy('created_at', 'desc')
+         const authTokens = await AuthToken.query()
+            .where('user_id', user.id)
+            .where('is_revoked', false)
+            .orderBy('created_at', 'desc')
 
-      let matchedToken: AuthToken | null = null
+         let matchedToken: AuthToken | null = null
 
-      for (const dbToken of authTokens) {
-         const isMatch = await hash.verify(dbToken.tokenHash, token)
-         if (isMatch) {
-            matchedToken = dbToken
-            break
+         for (const dbToken of authTokens) {
+            const isMatch = await hash.verify(dbToken.tokenHash, token)
+            if (isMatch) {
+               matchedToken = dbToken
+               break
+            }
          }
-      }
 
-      if (!matchedToken) {
-         throw new Error('Token not found or has been revoked')
-      }
+         if (!matchedToken) {
+            throw new Error('Token not found or has been revoked')
+         }
 
-      if (!matchedToken.isValid()) {
-         throw new Error('Token has expired or been revoked')
-      }
+         if (!matchedToken.isValid()) {
+            throw new Error('Token has expired or been revoked')
+         }
 
-      await matchedToken.updateLastUsed(ipAddress, userAgent)
-      const needsRotation = matchedToken.needsRotation()
+         await matchedToken.updateLastUsed(ipAddress, userAgent)
+         const needsRotation = matchedToken.needsRotation()
 
-      return {
-         user,
-         authToken: matchedToken,
-         needsRotation,
+         return {
+            user,
+            authToken: matchedToken,
+            needsRotation,
+         }
+      } catch (error) {
+         throw new Error(`Error in validating token, ${error}`)
       }
    }
 
@@ -154,8 +159,8 @@ export default class JwtService {
          .where('is_revoked', false)
 
       for (const dbToken of authTokens) {
-         const isMatch = await hash.verify(dbToken.tokenHash, token)
-         if (isMatch) {
+         const isMatched = await hash.verify(dbToken.tokenHash, token)
+         if (isMatched) {
             await dbToken.revoke()
             break
          }
@@ -184,7 +189,7 @@ export default class JwtService {
    /**
     * Cleanup expired tokens (run as cron job)
     */
-   static async cleanupExpiredTokens(): Promise<number> {
-      return AuthToken.cleanupExpiredTokens()
+   static async cleanupExpiredTokens(userId: number): Promise<number> {
+      return AuthToken.cleanupExpiredTokens(userId)
    }
 }

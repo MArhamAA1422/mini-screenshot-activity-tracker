@@ -11,7 +11,6 @@ export default class AuthMiddleware {
    async handle(ctx: HttpContext, next: NextFn) {
       const { request, response } = ctx
 
-      // Get token from Authorization header
       const authHeader = request.header('authorization')
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
          return response.unauthorized({

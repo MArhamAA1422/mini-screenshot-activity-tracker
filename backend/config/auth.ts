@@ -9,7 +9,7 @@ const authConfig = {
 
    tokenRotation: {
       enabled: true,
-      interval: 24, // hours - rotate tokens every 24 hours
+      interval: 60, // hours - rotate tokens every 60 hours
       gracePeriod: 15, // minutes - allow old tokens to work for 15 minutes after rotation
    },
 
