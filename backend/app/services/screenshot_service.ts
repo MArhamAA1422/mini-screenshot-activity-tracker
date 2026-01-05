@@ -73,15 +73,15 @@ export default class ScreenshotService {
       }
 
       if (!captureTime || !captureTime.isValid) {
-         captureTime = DateTime.now()
+         captureTime = DateTime.now().setZone('Asia/Dhaka')
       }
 
-      // Generate paths
+      console.log(captureTime)
+
       const relativePath = this.generateFilePath(companyId, userId, captureTime)
       const fileName = this.generateFileName(file.clientName, captureTime)
       const fullPath = join(this.getStoragePath(), relativePath)
 
-      // Ensure directory exists
       await mkdir(fullPath, { recursive: true })
 
       const filePath = join(fullPath, fileName)
@@ -123,19 +123,6 @@ export default class ScreenshotService {
          return true
       } catch {
          return false
-      }
-   }
-
-   /**
-    * Get file size
-    */
-   static async getFileSize(filePath: string): Promise<number> {
-      try {
-         const fullPath = join(this.getStoragePath(), filePath)
-         const stats = await stat(fullPath)
-         return stats.size
-      } catch {
-         return 0
       }
    }
 }

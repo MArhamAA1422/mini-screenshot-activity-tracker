@@ -5,7 +5,6 @@ import { getScreenshotsValidator } from '#validators/screenshot'
 import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
 import { readFile } from 'node:fs/promises'
-import { toAppZone } from '../../start/time_zone.js'
 
 export default class ScreenshotsController {
    /**
@@ -118,12 +117,11 @@ export default class ScreenshotsController {
             for (const [bucket, screenshots] of Object.entries(buckets)) {
                const screenshotData = await Promise.all(
                   screenshots.map(async (s: any) => {
-                     const capturedAtDhaka = toAppZone(s.capturedAt)
                      const data: any = {
                         id: s.id,
                         filePath: s.filePath,
                         fileUrl: s.getFileUrl('admin'),
-                        capturedAt: capturedAtDhaka.toISO(),
+                        capturedAt: s.capturedAt.toISO(),
                      }
 
                      // Include base64 image data if requested
@@ -149,18 +147,13 @@ export default class ScreenshotsController {
                   })
                )
 
-               const bucketStart = toAppZone(
-                  DateTime.fromObject(
-                     {
-                        year: date.year,
-                        month: date.month,
-                        day: date.day,
-                        hour: Number(hour),
-                        minute: Number(bucket),
-                     },
-                     { zone: 'Asia/Dhaka' }
-                  )
-               )
+               const bucketStart = DateTime.fromObject({
+                  year: date.year,
+                  month: date.month,
+                  day: date.day,
+                  hour: Number(hour),
+                  minute: Number(bucket),
+               })
 
                const interval = employee.screenshot_interval || 10
                const bucketEnd = bucketStart.plus({ minutes: interval })
