@@ -34,7 +34,6 @@ export default class AuthController {
             {
                name: payload.companyName,
                planId: payload.planId,
-               ownerEmail: payload.ownerEmail,
             },
             { client: trx }
          )

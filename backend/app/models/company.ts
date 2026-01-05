@@ -6,54 +6,51 @@ import User from './user.js'
 import Screenshot from './screenshot.js'
 
 export default class Company extends BaseModel {
-  @column({ isPrimary: true })
-  declare id: number
+   @column({ isPrimary: true })
+   declare id: number
 
-  @column()
-  declare name: string
+   @column()
+   declare name: string
 
-  @column()
-  declare planId: number
+   @column()
+   declare planId: number
 
-  @column()
-  declare ownerEmail: string
+   @column.dateTime({ autoCreate: true })
+   declare createdAt: DateTime
 
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
+   @belongsTo(() => Plan)
+   declare plan: BelongsTo<typeof Plan>
 
-  @belongsTo(() => Plan)
-  declare plan: BelongsTo<typeof Plan>
+   @hasMany(() => User)
+   declare users: HasMany<typeof User>
 
-  @hasMany(() => User)
-  declare users: HasMany<typeof User>
+   @hasMany(() => Screenshot)
+   declare screenshots: HasMany<typeof Screenshot>
 
-  @hasMany(() => Screenshot)
-  declare screenshots: HasMany<typeof Screenshot>
+   async getOwner() {
+      return User.query().where('company_id', this.id).where('role', 'admin').firstOrFail()
+   }
 
-  async getOwner() {
-    return User.query().where('company_id', this.id).where('role', 'admin').firstOrFail()
-  }
+   //   async getEmployeeCount(): Promise<number> {
+   //     const result = await User.query()
+   //       .where('company_id', this.id)
+   //       .where('role', 'employee')
+   //       .count('* as total')
 
-  //   async getEmployeeCount(): Promise<number> {
-  //     const result = await User.query()
-  //       .where('company_id', this.id)
-  //       .where('role', 'employee')
-  //       .count('* as total')
+   //     return Number(result[0].$extras.total)
+   //   }
 
-  //     return Number(result[0].$extras.total)
-  //   }
+   //   async calculateMonthlyBill(): Promise<number> {
+   //     const employeeCount = await this.getEmployeeCount()
+   //     await this.load('plan')
+   //     return employeeCount * this.plan.pricePerEmployee
+   //   }
 
-  //   async calculateMonthlyBill(): Promise<number> {
-  //     const employeeCount = await this.getEmployeeCount()
-  //     await this.load('plan')
-  //     return employeeCount * this.plan.pricePerEmployee
-  //   }
-
-  //   // Serialization
-  //   serializeExtras() {
-  //     return {
-  //       employee_count: this.$extras.employee_count,
-  //       monthly_bill: this.$extras.monthly_bill,
-  //     }
-  //   }
+   //   // Serialization
+   //   serializeExtras() {
+   //     return {
+   //       employee_count: this.$extras.employee_count,
+   //       monthly_bill: this.$extras.monthly_bill,
+   //     }
+   //   }
 }
