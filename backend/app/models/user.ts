@@ -32,9 +32,6 @@ export default class User extends compose(BaseModel, AuthFinder) {
    @column()
    declare role: 'admin' | 'employee'
 
-   @column()
-   declare screenshotInterval: number
-
    @column.dateTime({ autoCreate: true })
    declare createdAt: DateTime
 

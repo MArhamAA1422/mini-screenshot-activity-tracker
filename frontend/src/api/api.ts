@@ -90,7 +90,6 @@ export const employeeAPI = {
     name: string
     email: string
     password: string
-    screenshotInterval?: number
   }): Promise<{ message: string; data: Employee }> => {
     const response = await api.post('/api/admin/employees', data)
     return response.data

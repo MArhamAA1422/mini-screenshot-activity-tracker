@@ -45,7 +45,6 @@ export default class AuthController {
                email: payload.ownerEmail,
                password: payload.password,
                role: 'admin',
-               screenshotInterval: 10,
             },
             { client: trx }
          )
@@ -142,7 +141,6 @@ export default class AuthController {
             id: user.id,
             name: user.name,
             role: user.role,
-            screenshotInterval: user.screenshotInterval,
             company: {
                id: user.company.id,
                name: user.company.name,

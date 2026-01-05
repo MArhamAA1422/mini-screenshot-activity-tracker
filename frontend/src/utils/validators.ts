@@ -44,7 +44,6 @@ export const validateEmployee = (data: {
   name: string
   email: string
   password: string
-  screenshotInterval: number
 }): string | null => {
   if (!data.name.trim() || data.name.length < 2) {
     return "Employee name must be at least 2 characters"
@@ -60,10 +59,6 @@ export const validateEmployee = (data: {
 
   if (!data.password || data.password.length < 4) {
     return "Password must be at least 4 characters"
-  }
-
-  if (![5, 10].includes(data.screenshotInterval)) {
-    return "Screenshot interval must be 5 or 10 minutes"
   }
 
   return null

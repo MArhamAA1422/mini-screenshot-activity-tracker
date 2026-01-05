@@ -18,7 +18,6 @@ export default function AddEmployeeModal({
     name: "",
     email: "",
     password: "",
-    screenshotInterval: 10,
   });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -57,7 +56,6 @@ export default function AddEmployeeModal({
         name: "",
         email: "",
         password: "",
-        screenshotInterval: 10,
       });
 
       onSuccess();
@@ -75,7 +73,6 @@ export default function AddEmployeeModal({
         name: "",
         email: "",
         password: "",
-        screenshotInterval: 10,
       });
       setError("");
       onClose();

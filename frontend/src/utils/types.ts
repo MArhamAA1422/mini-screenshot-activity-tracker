@@ -26,7 +26,6 @@ export interface User {
   email: string
   role: 'admin' | 'employee'
   companyId: number
-  screenshotInterval?: number
 }
 
 export interface Employee {
@@ -35,7 +34,6 @@ export interface Employee {
   name: string
   email?: string
   role: 'employee'
-  screenshotInterval: number
   createdAt: string
   screenshot_count?: number
   last_screenshot_at?: string | null
