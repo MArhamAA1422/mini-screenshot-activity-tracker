@@ -76,8 +76,6 @@ export default class ScreenshotService {
          captureTime = DateTime.now().setZone('Asia/Dhaka')
       }
 
-      console.log(captureTime)
-
       const relativePath = this.generateFilePath(companyId, userId, captureTime)
       const fileName = this.generateFileName(file.clientName, captureTime)
       const fullPath = join(this.getStoragePath(), relativePath)
