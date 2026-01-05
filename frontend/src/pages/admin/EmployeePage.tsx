@@ -256,7 +256,7 @@ export default function AdminEmployeesPage() {
                           onClick={() => handleViewEmployee(employee.id)}
                           className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-900 mr-4"
                         >
-                          <span>View</span>
+                          <span className="cursor-pointer">View</span>
                         </button>
                         <button
                           onClick={() =>
@@ -272,7 +272,7 @@ export default function AdminEmployeesPage() {
                             </>
                           ) : (
                             <>
-                              <span>Delete</span>
+                              <span className="cursor-pointer">Delete</span>
                             </>
                           )}
                         </button>

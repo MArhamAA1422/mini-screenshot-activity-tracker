@@ -52,11 +52,6 @@ export default class ScreenshotsController {
             filePath: metadata.filePath,
             capturedAt: metadata.capturedAt,
             uploadedAt: DateTime.now(),
-            hour: metadata.capturedAt.hour,
-            minuteBucket: Screenshot.calculateMinuteBucket(
-               metadata.capturedAt.minute,
-               employee.screenshotInterval
-            ),
          })
 
          return response.created({
@@ -67,8 +62,6 @@ export default class ScreenshotsController {
                fileUrl: screenshotRecord.getFileUrl(),
                capturedAt: screenshotRecord.capturedAt.toISO(),
                uploadedAt: screenshotRecord.uploadedAt.toISO(),
-               hour: screenshotRecord.hour,
-               minuteBucket: screenshotRecord.minuteBucket,
             },
          })
       } catch (error) {
@@ -261,11 +254,6 @@ export default class ScreenshotsController {
                      filePath: metadata.filePath,
                      capturedAt: metadata.capturedAt,
                      uploadedAt: DateTime.now(),
-                     hour: metadata.capturedAt.hour,
-                     minuteBucket: Screenshot.calculateMinuteBucket(
-                        metadata.capturedAt.minute,
-                        employee.screenshotInterval
-                     ),
                   },
                   { client: trx }
                )
@@ -323,8 +311,6 @@ export default class ScreenshotsController {
                fileUrl: s.getFileUrl(employee.role),
                capturedAt: s.capturedAt.toISO(),
                uploadedAt: s.uploadedAt.toISO(),
-               hour: s.hour,
-               minuteBucket: s.minuteBucket,
             })),
             meta: screenshots.getMeta(),
          })

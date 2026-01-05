@@ -44,7 +44,6 @@ api.interceptors.response.use(
 )
 
 export const authAPI = {
-  // Company signup
   signup: async (data: SignupData): Promise<AuthResponse> => {
     const response = await api.post<AuthResponse>('/api/auth/signup', data)
     return response.data
@@ -70,9 +69,7 @@ export const authAPI = {
   },
 }
 
-// Employee API (Admin only)
 export const employeeAPI = {
-  // Get all employees
   list: async (params?: {
     page?: number
     limit?: number
@@ -82,7 +79,6 @@ export const employeeAPI = {
     return response.data
   },
 
-  // Search employees
   search: async (search: string): Promise<{ data: Employee[] }> => {
     const response = await api.get('/api/admin/employees/search', {
       params: { search },
@@ -90,13 +86,6 @@ export const employeeAPI = {
     return response.data
   },
 
-  // Get single employee
-  get: async (id: number): Promise<{ data: Employee }> => {
-    const response = await api.get(`/api/admin/employees/${id}`)
-    return response.data
-  },
-
-  // Create employee
   create: async (data: {
     name: string
     email: string
@@ -107,14 +96,12 @@ export const employeeAPI = {
     return response.data
   },
 
-  // Delete employee
   delete: async (id: number): Promise<{ message: string }> => {
     const response = await api.delete(`/api/admin/employees/${id}`)
     return response.data
   },
 }
 
-// Helper function to refresh token
 async function refreshToken(): Promise<void> {
   try {
     const response = await authAPI.refresh()
