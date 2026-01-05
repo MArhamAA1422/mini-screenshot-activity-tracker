@@ -53,13 +53,9 @@ export default class AuthController {
 
          await trx.commit()
 
-         await owner.load('company', (query) => {
-            query.preload('plan')
-         })
-
-         const ipAddress = request.ip()
-         const userAgent = request.header('user-agent')
-         const tokenResponse = await JwtService.generateToken(owner, ipAddress, userAgent)
+         // const ipAddress = request.ip()
+         // const userAgent = request.header('user-agent')
+         const tokenResponse = await JwtService.generateToken(owner)
 
          return response.created({
             message: 'Company and Admin registered successfully',
@@ -87,9 +83,9 @@ export default class AuthController {
       }
 
       // Generate JWT token
-      const ipAddress = request.ip()
-      const userAgent = request.header('user-agent')
-      const tokenResponse = await JwtService.generateToken(user, ipAddress, userAgent)
+      // const ipAddress = request.ip()
+      // const userAgent = request.header('user-agent')
+      const tokenResponse = await JwtService.generateToken(user)
 
       return response.ok({
          message: 'Login successful',

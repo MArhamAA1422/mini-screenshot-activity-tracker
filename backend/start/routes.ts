@@ -40,26 +40,16 @@ router
    .group(() => {
       router.post('/screenshots', '#controllers/screenshots_controller.upload')
       router.get('/screenshots', '#controllers/screenshots_controller.myScreenshots')
-      router.get('/screenshots/file/*', '#controllers/screenshots_controller.serveScreenshotFile')
    })
    .prefix('/api/employee')
    .use(middleware.auth())
    .use(middleware.employee())
 
 router
-   .group(() => {
-      router.get(
-         '/employees/:employeeId/screenshots',
-         '#controllers/screenshots_controller.getEmployeeScreenshots'
-      )
-
-      router.get(
-         '/employees/:employeeId/screenshots/grouped',
-         '#controllers/screenshots_controller.getGroupedScreenshots'
-      )
-
-      router.get('/screenshots/file/*', '#controllers/screenshots_controller.serveScreenshotFile')
-   })
+   .get(
+      '/employees/:employeeId/screenshots/grouped',
+      '#controllers/screenshots_controller.getGroupedScreenshots'
+   )
    .prefix('/api/admin')
    .use(middleware.auth())
    .use(middleware.admin())

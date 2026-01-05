@@ -1,25 +1,27 @@
+import { defineConfig } from '@adonisjs/auth'
+import { sessionUserProvider } from '@adonisjs/auth/session'
+import { JwtGuard } from '../app/auth/guards/jwt.js'
 import env from '#start/env'
 
-const authConfig = {
-   jwt: {
-      secret: env.get('JWT_SECRET'),
-      expiresIn: env.get('JWT_EXPIRES_IN', '24h'),
-      algorithm: 'HS256',
-   },
+const userProvider = sessionUserProvider({
+   model: () => import('#models/user'),
+})
 
-   tokenRotation: {
-      enabled: true,
-      interval: 60, // hours - rotate tokens every 60 hours
-      gracePeriod: 15, // minutes - allow old tokens to work for 15 minutes after rotation
+const authConfig = defineConfig({
+   default: 'jwt',
+   guards: {
+      jwt: (ctx) => {
+         return new JwtGuard(ctx, userProvider, {
+            secret: env.get('APP_KEY'),
+            accessTokenExpiresIn: '15m', // 15 minutes
+            refreshTokenExpiresIn: '7d', // 7 days
+         })
+      },
    },
-
-   password: {
-      minLength: 4,
-      requireUppercase: false,
-      requireLowercase: false,
-      requireNumbers: false,
-      requireSpecialChars: false,
-   },
-}
+})
 
 export default authConfig
+
+declare module '@adonisjs/auth/types' {
+   export interface Authenticators extends InferAuthenticators<typeof authConfig> {}
+}

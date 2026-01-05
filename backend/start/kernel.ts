@@ -1,13 +1,3 @@
-/*
-|--------------------------------------------------------------------------
-| HTTP kernel file
-|--------------------------------------------------------------------------
-|
-| The HTTP kernel file is used to register the middleware with the server
-| or the router.
-|
-*/
-
 import router from '@adonisjs/core/services/router'
 import server from '@adonisjs/core/services/server'
 
@@ -23,9 +13,9 @@ server.errorHandler(() => import('#exceptions/handler'))
  * the request URL.
  */
 server.use([
-  () => import('#middleware/container_bindings_middleware'),
-  () => import('#middleware/force_json_response_middleware'),
-  () => import('@adonisjs/cors/cors_middleware'),
+   () => import('#middleware/container_bindings_middleware'),
+   () => import('#middleware/force_json_response_middleware'),
+   () => import('@adonisjs/cors/cors_middleware'),
 ])
 
 /**
@@ -39,8 +29,7 @@ router.use([() => import('@adonisjs/core/bodyparser_middleware')])
  * the routes or the routes group.
  */
 export const middleware = router.named({
-  screenshotServe: () => import('#middleware/screenshot_serve_middleware'),
-  employee: () => import('#middleware/employee_middleware'),
-  admin: () => import('#middleware/admin_middleware'),
-  auth: () => import('#middleware/auth_middleware'),
+   employee: () => import('#middleware/employee_middleware'),
+   admin: () => import('#middleware/admin_middleware'),
+   auth: () => import('#middleware/auth_middleware'),
 })

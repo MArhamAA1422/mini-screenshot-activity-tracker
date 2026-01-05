@@ -1,7 +1,7 @@
 import { symbols, errors } from '@adonisjs/auth'
 import { AuthClientResponse, GuardContract } from '@adonisjs/auth/types'
 import type { HttpContext } from '@adonisjs/core/http'
-import jwt from 'jsonwebtoken'
+import jwt, { SignOptions, Secret } from 'jsonwebtoken'
 import { DateTime } from 'luxon'
 import RefreshToken from '#models/refresh_token'
 import crypto from 'node:crypto'
@@ -102,28 +102,32 @@ export class JwtGuard<
       const providerUser = await this.#userProvider.createUserForGuard(user)
       const userId = providerUser.getId()
 
-      // Generate access token (short-lived)
+      const secret = this.#options.secret as Secret
+
+      const accessTokenOptions: SignOptions = {
+         expiresIn: this.#options.accessTokenExpiresIn as SignOptions['expiresIn'],
+      }
+
       const accessToken = jwt.sign(
          {
             userId,
             type: 'access',
          } as TokenPayload,
-         this.#options.secret,
-         {
-            expiresIn: this.#options.accessTokenExpiresIn,
-         }
+         secret,
+         accessTokenOptions
       )
 
-      // Generate refresh token (long-lived)
+      const refreshTokenOptions: SignOptions = {
+         expiresIn: this.#options.refreshTokenExpiresIn as SignOptions['expiresIn'],
+      }
+
       const refreshToken = jwt.sign(
          {
             userId,
             type: 'refresh',
          } as TokenPayload,
-         this.#options.secret,
-         {
-            expiresIn: this.#options.refreshTokenExpiresIn,
-         }
+         secret,
+         refreshTokenOptions
       )
 
       // Store refresh token in database
@@ -136,7 +140,6 @@ export class JwtGuard<
          ipAddress: this.#ctx.request.ip(),
       })
 
-      // Calculate expiresIn in seconds for frontend
       const decoded = jwt.decode(accessToken) as { exp: number }
       const expiresIn = decoded.exp - Math.floor(Date.now() / 1000)
 
@@ -159,7 +162,6 @@ export class JwtGuard<
 
       this.authenticationAttempted = true
 
-      // Get token from Authorization header
       const authHeader = this.#ctx.request.header('authorization')
       if (!authHeader) {
          throw new errors.E_UNAUTHORIZED_ACCESS('Unauthorized access', {
@@ -167,7 +169,6 @@ export class JwtGuard<
          })
       }
 
-      // Extract token
       const [, token] = authHeader.split('Bearer ')
       if (!token) {
          throw new errors.E_UNAUTHORIZED_ACCESS('Unauthorized access', {
@@ -175,7 +176,6 @@ export class JwtGuard<
          })
       }
 
-      // Verify and decode token
       let payload: TokenPayload
       try {
          payload = jwt.verify(token, this.#options.secret) as TokenPayload
@@ -185,14 +185,12 @@ export class JwtGuard<
          })
       }
 
-      // Ensure it's an access token
       if (payload.type !== 'access') {
          throw new errors.E_UNAUTHORIZED_ACCESS('Invalid token type', {
             guardDriverName: this.driverName,
          })
       }
 
-      // Fetch user
       const providerUser = await this.#userProvider.findById(payload.userId)
       if (!providerUser) {
          throw new errors.E_UNAUTHORIZED_ACCESS('User not found', {
@@ -209,7 +207,6 @@ export class JwtGuard<
     * Refresh access token using refresh token
     */
    async refresh(refreshTokenString: string): Promise<TokenResponse> {
-      // Verify refresh token
       let payload: TokenPayload
       try {
          payload = jwt.verify(refreshTokenString, this.#options.secret) as TokenPayload
@@ -219,14 +216,12 @@ export class JwtGuard<
          })
       }
 
-      // Ensure it's a refresh token
       if (payload.type !== 'refresh') {
          throw new errors.E_UNAUTHORIZED_ACCESS('Invalid token type', {
             guardDriverName: this.driverName,
          })
       }
 
-      // Check if refresh token exists in database and is not revoked
       const storedToken = await RefreshToken.query()
          .where('token', this.hashToken(refreshTokenString))
          .where('user_id', payload.userId as number)
@@ -239,9 +234,7 @@ export class JwtGuard<
          })
       }
 
-      // Reuse attack detection
       if (storedToken && storedToken.revoked) {
-         // Token reuse detected → revoke all tokens for user
          await RefreshToken.query()
             .where('user_id', payload.userId as number)
             .update({ revoked: true })
@@ -258,14 +251,12 @@ export class JwtGuard<
          })
       }
 
-      // Check if token is expired
       if (storedToken.expiresAt < DateTime.now()) {
          throw new errors.E_UNAUTHORIZED_ACCESS('Refresh token expired', {
             guardDriverName: this.driverName,
          })
       }
 
-      // Fetch user
       const providerUser = await this.#userProvider.findById(payload.userId)
       if (!providerUser) {
          throw new errors.E_UNAUTHORIZED_ACCESS('User not found', {
@@ -273,11 +264,9 @@ export class JwtGuard<
          })
       }
 
-      // Revoke old refresh token
       storedToken.revoked = true
       await storedToken.save()
 
-      // Generate new tokens
       return this.generate(providerUser.getOriginal())
    }
 
@@ -286,12 +275,10 @@ export class JwtGuard<
     */
    async logout(refreshTokenString?: string): Promise<void> {
       if (refreshTokenString) {
-         // Revoke specific refresh token
          await RefreshToken.query()
             .where('token', this.hashToken(refreshTokenString))
             .update({ revoked: true })
       } else if (this.user) {
-         // Revoke all refresh tokens for current user
          const providerUser = await this.#userProvider.createUserForGuard(this.user)
          await RefreshToken.query()
             .where('user_id', providerUser.getId() as number)
@@ -323,7 +310,7 @@ export class JwtGuard<
    static async cleanupExpiredTokens(userId: number): Promise<void> {
       await RefreshToken.query()
          .where('user_id', userId)
-         .where('expires_at', '<', DateTime.now())
+         .where('expires_at', '<', DateTime.now().toJSDate())
          .delete()
    }
 

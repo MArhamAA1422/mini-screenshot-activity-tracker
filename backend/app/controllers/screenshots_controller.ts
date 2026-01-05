@@ -4,6 +4,7 @@ import ScreenshotService from '#services/screenshot_service'
 import { getScreenshotsValidator } from '#validators/screenshot'
 import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
+import { readFile } from 'node:fs/promises'
 
 export default class ScreenshotsController {
    /**
@@ -210,69 +211,6 @@ export default class ScreenshotsController {
    }
 
    /**
-    * Get screenshots for a specific employee (Admin only)
-    * GET /api/admin/employees/:employeeId/screenshots
-    */
-   async getEmployeeScreenshots({ params, request, response, auth }: HttpContext) {
-      const admin = auth?.user!
-      const employeeId = params.employeeId
-      const validated = await request.validateUsing(getScreenshotsValidator)
-
-      const page = validated.page || 1
-      const limit = validated.limit || 30
-      const date = validated.date
-
-      const employee = await db
-         .from('users')
-         .where('id', employeeId)
-         .where('company_id', admin.companyId)
-         .where('role', 'employee')
-         .first()
-
-      if (!employee) {
-         return response.notFound({
-            error: 'Employee not found',
-         })
-      }
-
-      try {
-         const query = Screenshot.query()
-            .where('user_id', employeeId)
-            .orderBy('captured_at', 'desc')
-
-         if (date) {
-            const startOfDay = date.startOf('day')
-            const endOfDay = date.endOf('day')
-            query.whereBetween('captured_at', [startOfDay.toSQL()!, endOfDay.toSQL()!])
-         }
-
-         const screenshots = await query.paginate(page, limit)
-
-         return response.ok({
-            employee: {
-               id: employee.id,
-               name: employee.name,
-            },
-            data: screenshots.all().map((s) => ({
-               id: s.id,
-               filePath: s.filePath,
-               fileUrl: s.getFileUrl('admin'),
-               capturedAt: s.capturedAt.toISO(),
-               uploadedAt: s.uploadedAt.toISO(),
-               hour: s.hour,
-               minuteBucket: s.minuteBucket,
-            })),
-            meta: screenshots.getMeta(),
-         })
-      } catch (error) {
-         return response.internalServerError({
-            error: 'Error in getting screenshots',
-            detailsError: error,
-         })
-      }
-   }
-
-   /**
     * Get grouped screenshots for an employee (Admin only)
     * GET /api/admin/employees/:employeeId/screenshots/grouped
     */
@@ -281,6 +219,7 @@ export default class ScreenshotsController {
          const admin = auth?.user!
          const employeeId = params.employeeId
          const dateString = request.input('date')
+         const includeImages = request.input('includeImages', 'false') === 'true'
 
          if (!dateString) {
             return response.badRequest({
@@ -314,17 +253,44 @@ export default class ScreenshotsController {
 
          for (const [hour, buckets] of Object.entries(grouped)) {
             for (const [bucket, screenshots] of Object.entries(buckets)) {
+               const screenshotData = await Promise.all(
+                  screenshots.map(async (s: any) => {
+                     const data: any = {
+                        id: s.id,
+                        filePath: s.filePath,
+                        fileUrl: s.getFileUrl('admin'),
+                        capturedAt: s.capturedAt.toISO(),
+                     }
+
+                     // Include base64 image data if requested
+                     if (includeImages) {
+                        try {
+                           const fullPath = ScreenshotService.getFullPath(s.filePath)
+                           const imageBuffer = await readFile(fullPath)
+                           const base64 = imageBuffer.toString('base64')
+                           const mimeType = s.filePath.endsWith('.png')
+                              ? 'image/png'
+                              : s.filePath.endsWith('.jpg') || s.filePath.endsWith('.jpeg')
+                                ? 'image/jpeg'
+                                : 'image/webp'
+
+                           data.imageData = `data:${mimeType};base64,${base64}`
+                        } catch (error) {
+                           console.error(`Failed to load image ${s.id}:`, error)
+                           data.imageData = null
+                        }
+                     }
+
+                     return data
+                  })
+               )
+
                groupedArray.push({
                   hour: Number.parseInt(hour),
                   minuteBucket: Number.parseInt(bucket),
                   timeRange: `${hour.toString().padStart(2, '0')}:${bucket.toString().padStart(2, '0')} - ${hour.toString().padStart(2, '0')}:${(Number.parseInt(bucket) + (employee.screenshot_interval || 10)).toString().padStart(2, '0')}`,
                   count: screenshots.length,
-                  screenshots: screenshots.map((s) => ({
-                     id: s.id,
-                     filePath: s.filePath,
-                     fileUrl: s.getFileUrl('admin'),
-                     capturedAt: s.capturedAt.toISO(),
-                  })),
+                  screenshots: screenshotData,
                })
             }
          }
@@ -343,77 +309,11 @@ export default class ScreenshotsController {
             date: date.toISODate(),
             totalScreenshots: groupedArray.reduce((sum, g) => sum + g.count, 0),
             groups: groupedArray,
+            imagesEmbedded: includeImages, // Indicates if images are included
          })
       } catch (error) {
          return response.internalServerError({
             error: 'Error in getting screenshots',
-         })
-      }
-   }
-
-   /**
-    * Serve screenshot file (authenticated)
-    * GET /api/admin/screenshots/file/* or /api/employee/screenshots/file/*
-    */
-   async serveScreenshotFile({ request, response, auth }: HttpContext) {
-      const user = auth?.user!
-
-      try {
-         const pathSegments = request.param('*')
-         const filePath = Array.isArray(pathSegments) ? pathSegments.join('/') : pathSegments
-
-         if (filePath.includes('..') || filePath.startsWith('/')) {
-            return response.status(403).send({
-               error: 'Forbidden: Invalid file path',
-            })
-         }
-
-         // Parse the file path to extract company_id and user_id
-         // Format: {company_id}/{user_id}/{date}/filename.png
-         const pathParts = filePath.split('/')
-         if (pathParts.length < 3) {
-            return response.status(400).send({
-               error: 'Invalid file path format',
-            })
-         }
-
-         const fileCompanyId = Number.parseInt(pathParts[0])
-         const fileUserId = Number.parseInt(pathParts[1])
-
-         if (Number.isNaN(fileCompanyId) || Number.isNaN(fileUserId)) {
-            return response.status(400).send({
-               error: 'Invalid file path format',
-            })
-         }
-
-         if (user.isAdmin()) {
-            if (fileCompanyId !== user.companyId) {
-               return response.status(403).send({
-                  error: 'You do not have permission to access this screenshot',
-               })
-            }
-         } else if (user.isEmployee()) {
-            if (fileUserId !== user.id || fileCompanyId !== user.companyId) {
-               return response.status(403).send({
-                  error: 'You do not have permission to access this screenshot',
-               })
-            }
-         }
-
-         const fullPath = ScreenshotService.getFullPath(filePath)
-
-         const exists = await ScreenshotService.fileExists(filePath)
-         if (!exists) {
-            return response.status(404).send({
-               error: 'Screenshot not found',
-            })
-         }
-
-         return response.download(fullPath, false)
-      } catch (error) {
-         console.error('Error serving screenshot:', error)
-         return response.status(500).send({
-            error: 'Error serving screenshot',
          })
       }
    }
