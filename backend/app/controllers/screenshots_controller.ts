@@ -5,6 +5,7 @@ import { getScreenshotsValidator } from '#validators/screenshot'
 import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
 import { readFile } from 'node:fs/promises'
+import { toAppZone } from '../../start/time_zone.js'
 
 export default class ScreenshotsController {
    /**
@@ -75,6 +76,131 @@ export default class ScreenshotsController {
          return response.internalServerError({
             error: 'Failed to upload screenshot',
             details: error.message,
+         })
+      }
+   }
+
+   /**
+    * Get grouped screenshots for an employee (Admin only)
+    * GET /api/admin/employees/:employeeId/screenshots/grouped
+    */
+   async getGroupedScreenshots({ params, request, response, auth }: HttpContext) {
+      try {
+         const admin = auth?.user!
+         const employeeId = params.employeeId
+         const dateString = request.input('date')
+         const includeImages = request.input('includeImages', 'false') === 'true'
+
+         if (!dateString) {
+            return response.badRequest({
+               error: 'Date parameter is required (format: YYYY-MM-DD)',
+            })
+         }
+
+         const date = DateTime.fromISO(dateString, { zone: 'Asia/Dhaka' })
+         if (!date.isValid) {
+            return response.badRequest({
+               error: 'Invalid date format. Use YYYY-MM-DD',
+            })
+         }
+
+         const employee = await db
+            .from('users')
+            .where('id', employeeId)
+            .where('company_id', admin.companyId)
+            .where('role', 'employee')
+            .first()
+
+         if (!employee) {
+            return response.notFound({
+               error: 'Employee not found',
+            })
+         }
+
+         const grouped = await Screenshot.getGroupedScreenshots(employeeId, date)
+
+         const groupedArray: any[] = []
+
+         for (const [hour, buckets] of Object.entries(grouped)) {
+            for (const [bucket, screenshots] of Object.entries(buckets)) {
+               const screenshotData = await Promise.all(
+                  screenshots.map(async (s: any) => {
+                     const capturedAtDhaka = toAppZone(s.capturedAt)
+                     const data: any = {
+                        id: s.id,
+                        filePath: s.filePath,
+                        fileUrl: s.getFileUrl('admin'),
+                        capturedAt: capturedAtDhaka.toISO(),
+                     }
+
+                     // Include base64 image data if requested
+                     if (includeImages) {
+                        try {
+                           const fullPath = ScreenshotService.getFullPath(s.filePath)
+                           const imageBuffer = await readFile(fullPath)
+                           const base64 = imageBuffer.toString('base64')
+                           const mimeType = s.filePath.endsWith('.png')
+                              ? 'image/png'
+                              : s.filePath.endsWith('.jpg') || s.filePath.endsWith('.jpeg')
+                                ? 'image/jpeg'
+                                : 'image/webp'
+
+                           data.imageData = `data:${mimeType};base64,${base64}`
+                        } catch (error) {
+                           console.error(`Failed to load image ${s.id}:`, error)
+                           data.imageData = null
+                        }
+                     }
+
+                     return data
+                  })
+               )
+
+               const bucketStart = toAppZone(
+                  DateTime.fromObject(
+                     {
+                        year: date.year,
+                        month: date.month,
+                        day: date.day,
+                        hour: Number(hour),
+                        minute: Number(bucket),
+                     },
+                     { zone: 'Asia/Dhaka' }
+                  )
+               )
+
+               const interval = employee.screenshot_interval || 10
+               const bucketEnd = bucketStart.plus({ minutes: interval })
+
+               groupedArray.push({
+                  hour: bucketStart.hour,
+                  minuteBucket: bucketStart.minute,
+                  timeRange: `${bucketStart.toFormat('HH:mm')} - ${bucketEnd.toFormat('HH:mm')}`,
+                  count: screenshots.length,
+                  screenshots: screenshotData,
+               })
+            }
+         }
+
+         groupedArray.sort((a, b) => {
+            if (a.hour !== b.hour) return a.hour - b.hour
+            return a.minuteBucket - b.minuteBucket
+         })
+
+         return response.ok({
+            employee: {
+               id: employee.id,
+               name: employee.name,
+               screenshotInterval: employee.screenshot_interval,
+            },
+            date: date.toISODate(),
+            totalScreenshots: groupedArray.reduce((sum, g) => sum + g.count, 0),
+            groups: groupedArray,
+            imagesEmbedded: includeImages, // Indicates if images are included
+         })
+      } catch (error) {
+         return response.internalServerError({
+            error: 'Error in getting screenshots',
          })
       }
    }
@@ -206,114 +332,6 @@ export default class ScreenshotsController {
          return response.internalServerError({
             error: 'Error in getting your screenshots',
             detailsError: error,
-         })
-      }
-   }
-
-   /**
-    * Get grouped screenshots for an employee (Admin only)
-    * GET /api/admin/employees/:employeeId/screenshots/grouped
-    */
-   async getGroupedScreenshots({ params, request, response, auth }: HttpContext) {
-      try {
-         const admin = auth?.user!
-         const employeeId = params.employeeId
-         const dateString = request.input('date')
-         const includeImages = request.input('includeImages', 'false') === 'true'
-
-         if (!dateString) {
-            return response.badRequest({
-               error: 'Date parameter is required (format: YYYY-MM-DD)',
-            })
-         }
-
-         const date = DateTime.fromISO(dateString)
-         if (!date.isValid) {
-            return response.badRequest({
-               error: 'Invalid date format. Use YYYY-MM-DD',
-            })
-         }
-
-         const employee = await db
-            .from('users')
-            .where('id', employeeId)
-            .where('company_id', admin.companyId)
-            .where('role', 'employee')
-            .first()
-
-         if (!employee) {
-            return response.notFound({
-               error: 'Employee not found',
-            })
-         }
-
-         const grouped = await Screenshot.getGroupedScreenshots(employeeId, date)
-
-         const groupedArray: any[] = []
-
-         for (const [hour, buckets] of Object.entries(grouped)) {
-            for (const [bucket, screenshots] of Object.entries(buckets)) {
-               const screenshotData = await Promise.all(
-                  screenshots.map(async (s: any) => {
-                     const data: any = {
-                        id: s.id,
-                        filePath: s.filePath,
-                        fileUrl: s.getFileUrl('admin'),
-                        capturedAt: s.capturedAt.toISO(),
-                     }
-
-                     // Include base64 image data if requested
-                     if (includeImages) {
-                        try {
-                           const fullPath = ScreenshotService.getFullPath(s.filePath)
-                           const imageBuffer = await readFile(fullPath)
-                           const base64 = imageBuffer.toString('base64')
-                           const mimeType = s.filePath.endsWith('.png')
-                              ? 'image/png'
-                              : s.filePath.endsWith('.jpg') || s.filePath.endsWith('.jpeg')
-                                ? 'image/jpeg'
-                                : 'image/webp'
-
-                           data.imageData = `data:${mimeType};base64,${base64}`
-                        } catch (error) {
-                           console.error(`Failed to load image ${s.id}:`, error)
-                           data.imageData = null
-                        }
-                     }
-
-                     return data
-                  })
-               )
-
-               groupedArray.push({
-                  hour: Number.parseInt(hour),
-                  minuteBucket: Number.parseInt(bucket),
-                  timeRange: `${hour.toString().padStart(2, '0')}:${bucket.toString().padStart(2, '0')} - ${hour.toString().padStart(2, '0')}:${(Number.parseInt(bucket) + (employee.screenshot_interval || 10)).toString().padStart(2, '0')}`,
-                  count: screenshots.length,
-                  screenshots: screenshotData,
-               })
-            }
-         }
-
-         groupedArray.sort((a, b) => {
-            if (a.hour !== b.hour) return a.hour - b.hour
-            return a.minuteBucket - b.minuteBucket
-         })
-
-         return response.ok({
-            employee: {
-               id: employee.id,
-               name: employee.name,
-               screenshotInterval: employee.screenshot_interval,
-            },
-            date: date.toISODate(),
-            totalScreenshots: groupedArray.reduce((sum, g) => sum + g.count, 0),
-            groups: groupedArray,
-            imagesEmbedded: includeImages, // Indicates if images are included
-         })
-      } catch (error) {
-         return response.internalServerError({
-            error: 'Error in getting screenshots',
          })
       }
    }

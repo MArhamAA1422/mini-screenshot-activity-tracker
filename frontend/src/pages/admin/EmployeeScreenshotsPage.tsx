@@ -81,13 +81,6 @@ export default function EmployeeScreenshotsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employeeId, selectedDate]);
 
-  // Cleanup blob URLs
-  useEffect(() => {
-    return () => {
-      imageBlobUrls.forEach((url) => URL.revokeObjectURL(url));
-    };
-  }, [imageBlobUrls]);
-
   // Close modal on Escape
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -309,7 +302,6 @@ export default function EmployeeScreenshotsPage() {
         }`}
         onClick={() => openModal(screenshot)}
       >
-        {/* Loading state */}
         {isLoadingImg && !imageSrc && !hasError && (
           <div className="w-full h-full flex flex-col items-center justify-center">
             <Loader2 className="w-6 h-6 text-blue-600 animate-spin mb-1" />
@@ -317,7 +309,6 @@ export default function EmployeeScreenshotsPage() {
           </div>
         )}
 
-        {/* Error state */}
         {hasError && !imageSrc && (
           <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900">
             <AlertCircle className="w-6 h-6 text-red-500 mb-1" />
@@ -449,7 +440,6 @@ export default function EmployeeScreenshotsPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Summary Card */}
         {data && !isLoading && (
           <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
             <div className="flex items-center justify-between">
@@ -490,7 +480,6 @@ export default function EmployeeScreenshotsPage() {
           </div>
         )}
 
-        {/* Error Message */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
@@ -503,7 +492,6 @@ export default function EmployeeScreenshotsPage() {
           </div>
         )}
 
-        {/* Loading State */}
         {isLoading && (
           <div className="text-center py-12">
             <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-4" />
@@ -518,10 +506,6 @@ export default function EmployeeScreenshotsPage() {
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
               No screenshots found
             </h3>
-            <p className="text-gray-600">
-              No screenshots uploaded on{" "}
-              {format(parseISO(selectedDate), "MMMM d, yyyy")}
-            </p>
           </div>
         )}
 
