@@ -39,7 +39,6 @@ router
 router
    .group(() => {
       router.post('/screenshots', '#controllers/screenshots_controller.upload')
-      router.get('/screenshots', '#controllers/screenshots_controller.myScreenshots')
    })
    .prefix('/api/employee')
    .use(middleware.auth())

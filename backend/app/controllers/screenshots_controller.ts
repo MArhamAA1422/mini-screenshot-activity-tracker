@@ -1,7 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import Screenshot from '#models/screenshot'
 import ScreenshotService from '#services/screenshot_service'
-import { getScreenshotsValidator } from '#validators/screenshot'
 import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
 import { readFile } from 'node:fs/promises'
@@ -273,45 +272,6 @@ export default class ScreenshotsController {
       } catch (error) {
          await trx.rollback()
          throw error
-      }
-   }
-
-   /**
-    * Get employee's own screenshots
-    * GET /api/employee/screenshots
-    */
-   async myScreenshots({ request, response, auth }: HttpContext) {
-      try {
-         const employee = auth?.user!
-         const { page = 1, limit = 50, date } = await request.validateUsing(getScreenshotsValidator)
-
-         const query = Screenshot.query()
-            .where('user_id', employee.id)
-            .orderBy('captured_at', 'desc')
-
-         if (date) {
-            const startOfDay = date.startOf('day')
-            const endOfDay = date.endOf('day')
-            query.whereBetween('captured_at', [startOfDay.toSQL()!, endOfDay.toSQL()!])
-         }
-
-         const screenshots = await query.paginate(page, limit)
-
-         return response.ok({
-            data: screenshots.all().map((s) => ({
-               id: s.id,
-               filePath: s.filePath,
-               fileUrl: s.getFileUrl(employee.role),
-               capturedAt: s.capturedAt.toISO(),
-               uploadedAt: s.uploadedAt.toISO(),
-            })),
-            meta: screenshots.getMeta(),
-         })
-      } catch (error) {
-         return response.internalServerError({
-            error: 'Error in getting your screenshots',
-            detailsError: error,
-         })
       }
    }
 }

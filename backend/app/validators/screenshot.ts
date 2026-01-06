@@ -8,15 +8,14 @@ export const uploadScreenshotValidator = vine.compile(
    vine.object({
       screenshot: vine
          .file({
-            size: '5mb', // Max 5MB per screenshot
-            extnames: ['jpg', 'jpeg', 'png', 'webp'], // Allowed image formats
+            size: '5mb',
+            extnames: ['jpg', 'jpeg', 'png', 'webp'],
          })
-         .optional(), // Optional because it might be in multipart
+         .optional(),
 
       capturedAt: vine
          .string()
          .transform((value) => {
-            // Try to parse as ISO datetime
             const parsed = DateTime.fromISO(value)
             if (!parsed.isValid) {
                throw new Error(
@@ -25,7 +24,7 @@ export const uploadScreenshotValidator = vine.compile(
             }
             return parsed
          })
-         .optional(), // Optional - will use current time if not provided
+         .optional(),
    })
 )
 
@@ -42,9 +41,9 @@ export const bulkUploadScreenshotValidator = vine.compile(
             })
          )
          .minLength(1)
-         .maxLength(50), // Max 50 screenshots at once
+         .maxLength(50),
 
-      capturedTimes: vine.array(vine.string()).optional(), // Array of ISO datetime strings matching screenshots array
+      capturedTimes: vine.array(vine.string()).optional(),
    })
 )
 
