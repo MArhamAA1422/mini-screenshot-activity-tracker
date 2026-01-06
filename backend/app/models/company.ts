@@ -30,27 +30,4 @@ export default class Company extends BaseModel {
    async getOwner() {
       return User.query().where('company_id', this.id).where('role', 'admin').firstOrFail()
    }
-
-   //   async getEmployeeCount(): Promise<number> {
-   //     const result = await User.query()
-   //       .where('company_id', this.id)
-   //       .where('role', 'employee')
-   //       .count('* as total')
-
-   //     return Number(result[0].$extras.total)
-   //   }
-
-   //   async calculateMonthlyBill(): Promise<number> {
-   //     const employeeCount = await this.getEmployeeCount()
-   //     await this.load('plan')
-   //     return employeeCount * this.plan.pricePerEmployee
-   //   }
-
-   //   // Serialization
-   //   serializeExtras() {
-   //     return {
-   //       employee_count: this.$extras.employee_count,
-   //       monthly_bill: this.$extras.monthly_bill,
-   //     }
-   //   }
 }

@@ -16,11 +16,10 @@ export default class AuthController {
       try {
          const data = await request.validateUsing(companySignupValidator)
 
-         // Check if email already exists
          const existingUser = await User.query().where('email', data.ownerEmail).first()
          if (existingUser) {
             return response.conflict({
-               error: 'Email already registered',
+               error: 'Credentials already exist',
             })
          }
 
@@ -52,8 +51,11 @@ export default class AuthController {
          return response.created({
             message: 'Account created successfully',
             data: {
-               user: tokenResponse.user,
-               expiresAt: tokenResponse.expiresAt,
+               user: {
+                  name: tokenResponse.user.name,
+                  role: 'admin',
+                  companyName: data.companyName,
+               },
             },
          })
       } catch (error) {
@@ -93,8 +95,11 @@ export default class AuthController {
          return response.ok({
             message: 'Login successful',
             data: {
-               user: tokenResponse.user,
-               expiresAt: tokenResponse.expiresAt,
+               user: {
+                  name: tokenResponse.user.name,
+                  role: tokenResponse.user.role,
+                  companyName: user.company.name,
+               },
             },
          })
       } catch (error) {
@@ -126,17 +131,9 @@ export default class AuthController {
 
          return response.ok({
             data: {
-               id: user.id,
                name: user.name,
-               email: user.email,
                role: user.role,
-               companyId: user.companyId,
-               company: user.company
-                  ? {
-                       id: user.company.id,
-                       name: user.company.name,
-                    }
-                  : null,
+               companyName: user.company.name,
             },
          })
       } catch (error) {

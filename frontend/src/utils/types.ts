@@ -21,20 +21,13 @@ export interface AuthResponse {
 }
 
 export interface User {
-  id: number
   name: string
-  email: string
   role: 'admin' | 'employee'
-  companyId: number
+  companyName: string
 }
 
-export interface Employee {
+export interface Employee extends User {
   id: number
-  companyId: number
-  name: string
-  email?: string
-  role: 'employee'
-  createdAt: string
   screenshot_count?: number
   last_screenshot_at?: string | null
 }

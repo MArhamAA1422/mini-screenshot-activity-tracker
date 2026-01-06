@@ -120,7 +120,10 @@ export default function EmployeeDashboardPage() {
                 <h1 className="text-xl font-bold text-gray-900">
                   {user?.name}
                 </h1>
-                <p className="text-sm text-gray-500">Employee Dashboard</p>
+                <p className="text-sm text-gray-500">
+                  Employee Dashboard (Company:{" "}
+                  <span className="font-bold">{user?.companyName}</span>)
+                </p>
               </div>
             </div>
 

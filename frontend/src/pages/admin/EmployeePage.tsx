@@ -98,7 +98,7 @@ export default function AdminEmployeesPage() {
               <Users className="w-8 h-8 text-blue-600" />
               <div>
                 <h1 className="text-xl font-bold text-gray-900">
-                  Employee Management
+                  {user?.companyName} Employee Management
                 </h1>
                 <p className="text-sm text-gray-500">{user?.name} - Admin</p>
               </div>
