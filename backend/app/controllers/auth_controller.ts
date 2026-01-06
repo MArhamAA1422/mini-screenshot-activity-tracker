@@ -232,10 +232,10 @@ export default class AuthController {
 
       // Refresh token cookie (7 days)
       response.cookie('refreshToken', refreshToken, {
-         httpOnly: true, // Cannot be accessed by JavaScript (XSS protection)
-         secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-         sameSite: 'lax', // CSRF protection
-         maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
+         httpOnly: true,
+         secure: process.env.NODE_ENV === 'production',
+         sameSite: 'lax',
+         maxAge: 7 * 24 * 60 * 60,
          path: '/',
       })
    }

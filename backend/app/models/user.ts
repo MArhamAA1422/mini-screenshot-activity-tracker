@@ -3,7 +3,6 @@ import { BaseModel, column, belongsTo, hasMany } from '@adonisjs/lucid/orm'
 import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import hash from '@adonisjs/core/services/hash'
 import Company from './company.js'
-import AuthToken from './auth_token.js'
 import Screenshot from './screenshot.js'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
 import { compose } from '@adonisjs/core/helpers'
@@ -38,9 +37,6 @@ export default class User extends compose(BaseModel, AuthFinder) {
    @belongsTo(() => Company)
    declare company: BelongsTo<typeof Company>
 
-   @hasMany(() => AuthToken)
-   declare authTokens: HasMany<typeof AuthToken>
-
    @hasMany(() => Screenshot)
    declare screenshots: HasMany<typeof Screenshot>
 
@@ -50,18 +46,6 @@ export default class User extends compose(BaseModel, AuthFinder) {
 
    isEmployee(): boolean {
       return this.role === 'employee'
-   }
-
-   async revokeAllTokens(): Promise<void> {
-      await AuthToken.query().where('user_id', this.id).update({ is_revoked: true })
-   }
-
-   async getActiveTokens(): Promise<AuthToken[]> {
-      return AuthToken.query()
-         .where('user_id', this.id)
-         .where('is_revoked', false)
-         .where('expires_at', '>', DateTime.now().toSQL())
-         .orderBy('created_at', 'desc')
    }
 
    serializeExtras() {
