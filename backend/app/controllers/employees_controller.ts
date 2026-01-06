@@ -73,7 +73,7 @@ export default class EmployeesController {
          const isDuplicateEmail = await User.findBy('email', payload.email)
          if (isDuplicateEmail) {
             return response.conflict({
-               error: 'Email already registered',
+               error: 'Credentials already exist',
             })
          }
 

@@ -42,9 +42,12 @@ export default function SignupPage() {
 
   useEffect(() => {
     fetchPlans();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchPlans = async () => {
+    if (user) return;
+
     setIsLoadingPlans(true);
     setPlansError("");
 

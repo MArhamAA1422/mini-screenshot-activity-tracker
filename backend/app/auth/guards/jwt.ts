@@ -28,8 +28,8 @@ export interface JwtUserProviderContract<RealUser> {
  */
 export type JwtGuardOptions = {
    secret: string
-   accessTokenExpiresIn: string // e.g., '15m', '1h'
-   refreshTokenExpiresIn: string // e.g., '7d', '30d'
+   accessTokenExpiresIn: string
+   refreshTokenExpiresIn: string
 }
 
 /**

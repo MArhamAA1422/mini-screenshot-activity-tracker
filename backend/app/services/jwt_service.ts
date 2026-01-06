@@ -1,14 +1,14 @@
 import jwt from 'jsonwebtoken'
 import { DateTime } from 'luxon'
-import hash from '@adonisjs/core/services/hash'
 import env from '#start/env'
 import User from '#models/user'
-import AuthToken from '#models/auth_token'
 
 interface JwtPayload {
    userId: number
    role: 'admin' | 'employee'
    companyId: number
+   iat?: number // Issued at
+   exp?: number // Expiration
 }
 
 interface TokenResponse {
@@ -17,17 +17,21 @@ interface TokenResponse {
    user: {
       id: number
       name: string
+      email: string
       role: string
       companyId: number
    }
 }
 
 export default class JwtService {
-   static async generateToken(
-      user: User,
-      ipAddress?: string,
-      userAgent?: string
-   ): Promise<TokenResponse> {
+   // Token expiry times
+   private static readonly ACCESS_TOKEN_EXPIRY = '24h'
+   private static readonly REFRESH_TOKEN_EXPIRY = '7d'
+
+   /**
+    * Generate access token (stateless)
+    */
+   static generateToken(user: User): TokenResponse {
       const payload: JwtPayload = {
          userId: user.id,
          role: user.role,
@@ -35,22 +39,11 @@ export default class JwtService {
       }
 
       const token = jwt.sign(payload, env.get('JWT_SECRET'), {
-         expiresIn: '24h',
+         expiresIn: this.ACCESS_TOKEN_EXPIRY,
          algorithm: 'HS256',
       })
 
       const expiresAt = DateTime.now().plus({ hours: 24 })
-
-      const tokenHash = await hash.make(token)
-
-      await AuthToken.create({
-         userId: user.id,
-         tokenHash,
-         expiresAt,
-         ipAddress,
-         userAgent,
-         isRevoked: false,
-      })
 
       return {
          token,
@@ -58,6 +51,7 @@ export default class JwtService {
          user: {
             id: user.id,
             name: user.name,
+            email: user.email,
             role: user.role,
             companyId: user.companyId,
          },
@@ -65,7 +59,25 @@ export default class JwtService {
    }
 
    /**
-    * Verify and decode a JWT token
+    * Generate refresh token (stateless)
+    */
+   static generateRefreshToken(user: User): string {
+      const payload: JwtPayload = {
+         userId: user.id,
+         role: user.role,
+         companyId: user.companyId,
+      }
+
+      const refreshToken = jwt.sign(payload, env.get('JWT_SECRET'), {
+         expiresIn: this.REFRESH_TOKEN_EXPIRY,
+         algorithm: 'HS256',
+      })
+
+      return refreshToken
+   }
+
+   /**
+    * Verify and decode access token
     */
    static verifyToken(token: string): JwtPayload {
       try {
@@ -75,121 +87,146 @@ export default class JwtService {
 
          return decoded
       } catch (error) {
-         throw new Error('Invalid or expired token')
+         if (error instanceof jwt.TokenExpiredError) {
+            throw new Error('Token has expired')
+         } else if (error instanceof jwt.JsonWebTokenError) {
+            throw new Error('Invalid token')
+         } else {
+            throw new Error('Token verification failed')
+         }
       }
    }
 
    /**
-    * Validate token against database and check if needs rotation
+    * Verify refresh token
     */
-   static async validateToken(
-      token: string,
-      ipAddress?: string,
-      userAgent?: string
-   ): Promise<{
-      user: User
-      authToken: AuthToken
-      needsRotation: boolean
-   }> {
+   static verifyRefreshToken(refreshToken: string): JwtPayload {
+      try {
+         const decoded = jwt.verify(refreshToken, env.get('JWT_SECRET'), {
+            algorithms: ['HS256'],
+         }) as JwtPayload
+
+         return decoded
+      } catch (error) {
+         if (error instanceof jwt.TokenExpiredError) {
+            throw new Error('Refresh token has expired')
+         } else if (error instanceof jwt.JsonWebTokenError) {
+            throw new Error('Invalid refresh token')
+         } else {
+            throw new Error('Refresh token verification failed')
+         }
+      }
+   }
+
+   /**
+    * Validate token and get user (stateless)
+    */
+   static async validateToken(token: string): Promise<User> {
       try {
          const payload = this.verifyToken(token)
+
          const user = await User.query()
             .where('id', payload.userId)
             .preload('company')
             .firstOrFail()
 
-         const authTokens = await AuthToken.query()
-            .where('user_id', user.id)
-            .where('is_revoked', false)
-            .orderBy('created_at', 'desc')
-
-         let matchedToken: AuthToken | null = null
-
-         for (const dbToken of authTokens) {
-            const isMatch = await hash.verify(dbToken.tokenHash, token)
-            if (isMatch) {
-               matchedToken = dbToken
-               break
-            }
+         if (!user) {
+            throw new Error('User not found')
          }
 
-         if (!matchedToken) {
-            throw new Error('Token not found or has been revoked')
-         }
-
-         if (!matchedToken.isValid()) {
-            throw new Error('Token has expired or been revoked')
-         }
-
-         await matchedToken.updateLastUsed(ipAddress, userAgent)
-         const needsRotation = matchedToken.needsRotation()
-
-         return {
-            user,
-            authToken: matchedToken,
-            needsRotation,
-         }
+         return user
       } catch (error) {
-         throw new Error(`Error in validating token, ${error}`)
+         throw error
       }
    }
 
    /**
-    * Rotate an existing token
+    * Refresh access token using refresh token (stateless)
     */
-   static async rotateToken(
-      oldToken: string,
-      ipAddress?: string,
-      userAgent?: string
-   ): Promise<TokenResponse> {
-      const { user, authToken } = await this.validateToken(oldToken, ipAddress, userAgent)
-      await authToken.markAsRotated()
-      const newTokenResponse = await this.generateToken(user, ipAddress, userAgent)
-      return newTokenResponse
-   }
-
-   /**
-    * Revoke a token (logout)
-    */
-   static async revokeToken(token: string): Promise<void> {
-      const payload = this.verifyToken(token)
-
-      const authTokens = await AuthToken.query()
-         .where('user_id', payload.userId)
-         .where('is_revoked', false)
-
-      for (const dbToken of authTokens) {
-         const isMatched = await hash.verify(dbToken.tokenHash, token)
-         if (isMatched) {
-            await dbToken.revoke()
-            break
-         }
-      }
-   }
-
-   /**
-    * Revoke all tokens for a user (logout all devices)
-    */
-   static async revokeAllUserTokens(userId: number): Promise<void> {
-      await AuthToken.revokeUserTokens(userId)
-   }
-
-   /**
-    * Check if token is in grace period after rotation
-    */
-   static async isTokenInGracePeriod(token: string): Promise<boolean> {
+   static async refreshAccessToken(refreshToken: string): Promise<TokenResponse> {
       try {
-         const { authToken } = await this.validateToken(token)
-         return authToken.isInGracePeriod()
-      } catch {
+         const payload = this.verifyRefreshToken(refreshToken)
+
+         const user = await User.query()
+            .where('id', payload.userId)
+            .preload('company')
+            .firstOrFail()
+
+         if (!user) {
+            throw new Error('User not found')
+         }
+
+         // Generate new access token
+         const newTokenResponse = this.generateToken(user)
+
+         return newTokenResponse
+      } catch (error) {
+         throw error
+      }
+   }
+
+   /**
+    * Decode token without verification (for debugging)
+    */
+   static decodeToken(token: string): JwtPayload | null {
+      try {
+         const decoded = jwt.decode(token) as JwtPayload
+         return decoded
+      } catch (error) {
+         return null
+      }
+   }
+
+   /**
+    * Check if token is expired (without verification)
+    */
+   static isTokenExpired(token: string): boolean {
+      try {
+         const decoded = this.decodeToken(token)
+         if (!decoded || !decoded.exp) {
+            return true
+         }
+
+         const currentTime = Math.floor(Date.now() / 1000)
+         return decoded.exp < currentTime
+      } catch (error) {
+         return true
+      }
+   }
+
+   /**
+    * Get token expiry time
+    */
+   static getTokenExpiry(token: string): DateTime | null {
+      try {
+         const decoded = this.decodeToken(token)
+         if (!decoded || !decoded.exp) {
+            return null
+         }
+
+         return DateTime.fromSeconds(decoded.exp)
+      } catch (error) {
+         return null
+      }
+   }
+
+   /**
+    * Check if token needs rotation (less than 1 hour remaining)
+    */
+   static needsRotation(token: string): boolean {
+      try {
+         const decoded = this.decodeToken(token)
+         if (!decoded || !decoded.exp) {
+            return false
+         }
+
+         const currentTime = Math.floor(Date.now() / 1000)
+         const timeRemaining = decoded.exp - currentTime
+
+         // Needs rotation if less than 1 hour remaining
+         return timeRemaining < 3600 && timeRemaining > 0
+      } catch (error) {
          return false
       }
-   }
-
-   /**
-    * Cleanup expired tokens (run as cron job)
-    */
-   static async cleanupExpiredTokens(userId: number): Promise<number> {
-      return AuthToken.cleanupExpiredTokens(userId)
    }
 }

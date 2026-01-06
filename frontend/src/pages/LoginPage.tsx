@@ -49,7 +49,10 @@ export default function LoginPage() {
         }
       }, 100);
     } catch (err: any) {
-      setError(err.message || "Login failed. Please check your credentials.");
+      setError(
+        err.response?.data?.error ||
+          "Login failed. Please check your credentials."
+      );
     } finally {
       setIsLoading(false);
     }

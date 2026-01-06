@@ -13,8 +13,8 @@ const authConfig = defineConfig({
       jwt: (ctx) => {
          return new JwtGuard(ctx, userProvider, {
             secret: env.get('APP_KEY'),
-            accessTokenExpiresIn: '15m', // 15 minutes
-            refreshTokenExpiresIn: '7d', // 7 days
+            accessTokenExpiresIn: '24h',
+            refreshTokenExpiresIn: '7d',
          })
       },
    },

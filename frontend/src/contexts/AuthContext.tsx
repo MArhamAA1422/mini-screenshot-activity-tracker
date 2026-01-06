@@ -3,26 +3,20 @@ import {
   useContext,
   useState,
   useEffect,
+  useCallback,
   type ReactNode,
 } from "react";
 import { authAPI } from "../api/api";
-import type { User } from "../utils/types";
+import type { SignupData, User } from "../utils/types";
 
 interface AuthContextType {
   user: User | null;
-  token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   isAdmin: boolean;
   isEmployee: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (data: {
-    ownerName: string;
-    ownerEmail: string;
-    companyName: string;
-    planId: number;
-    password: string;
-  }) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
+  signup: (data: SignupData) => Promise<User>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -31,97 +25,134 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  useEffect(() => {
-    const initAuth = async () => {
-      const savedToken = localStorage.getItem("token");
+  // Check if we should skip auth check (on public pages)
+  const shouldSkipAuthCheck = () => {
+    const path = window.location.pathname;
+    const publicPaths = ["/login", "/signup"];
+    return publicPaths.includes(path);
+  };
+
+  const initAuth = useCallback(async () => {
+    // Skip if already initialized
+    if (isInitialized) {
+      return;
+    }
+
+    try {
       const savedUser = localStorage.getItem("user");
 
-      if (savedToken && savedUser) {
-        setToken(savedToken);
-        setUser(JSON.parse(savedUser));
+      // If no saved user and we're on a public page, skip API call
+      if (!savedUser && shouldSkipAuthCheck()) {
+        setIsLoading(false);
+        setIsInitialized(true);
+        return;
+      }
 
+      if (savedUser) {
         try {
-          const response = await authAPI.me();
-          setUser(response.data);
-        } catch (error) {
-          console.log(error);
-          localStorage.removeItem("token");
+          setUser(JSON.parse(savedUser));
+        } catch (e) {
+          console.log(e);
           localStorage.removeItem("user");
-          setToken(null);
-          setUser(null);
         }
       }
 
+      if (savedUser || !shouldSkipAuthCheck()) {
+        try {
+          const response = await authAPI.me();
+          const userData = response.data;
+
+          setUser(userData);
+          localStorage.setItem("user", JSON.stringify(userData));
+        } catch (error) {
+          console.log("Auth check failed:", error);
+          setUser(null);
+          localStorage.removeItem("user");
+        }
+      }
+    } catch (error) {
+      console.error("Init auth error:", error);
+      setUser(null);
+      localStorage.removeItem("user");
+    } finally {
       setIsLoading(false);
-    };
+      setIsInitialized(true);
+    }
+  }, [isInitialized]);
 
+  // Initialize only once on mount
+  useEffect(() => {
     initAuth();
-  }, []);
+  }, [initAuth]);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<User> => {
     try {
       const response = await authAPI.login({ email, password });
-      const { token: newToken, user: newUser } = response.data;
+      const userData = response.data.user;
 
-      setToken(newToken);
-      setUser(newUser);
-      localStorage.setItem("token", newToken);
-      localStorage.setItem("user", JSON.stringify(newUser));
+      setUser(userData);
+      localStorage.setItem("user", JSON.stringify(userData));
+
+      return userData;
     } catch (error) {
-      console.log(error);
+      console.error("Login error:", error);
+      throw error;
     }
   };
 
-  const signup = async (data: {
-    ownerName: string;
-    ownerEmail: string;
-    companyName: string;
-    planId: number;
-    password: string;
-  }) => {
-    const response = await authAPI.signup(data);
-    const { token: newToken, user: newUser } = response.data;
+  const signup = async (data: SignupData): Promise<User> => {
+    try {
+      const response = await authAPI.signup(data);
+      const userData = response.data.user;
 
-    setToken(newToken);
-    setUser(newUser);
-    localStorage.setItem("token", newToken);
-    localStorage.setItem("user", JSON.stringify(newUser));
+      setUser(userData);
+      localStorage.setItem("user", JSON.stringify(userData));
+
+      return userData;
+    } catch (error) {
+      console.error("Signup error:", error);
+      throw error;
+    }
   };
 
   const logout = async () => {
     try {
       await authAPI.logout();
     } catch (error) {
-      console.log(error);
+      console.error("Logout error:", error);
+    } finally {
+      setUser(null);
+      localStorage.removeItem("user");
     }
-
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
   };
 
   const refreshUser = async () => {
     try {
       const response = await authAPI.me();
-      setUser(response.data);
-      localStorage.setItem("user", JSON.stringify(response.data));
+      const userData = response.data;
+
+      setUser(userData);
+      localStorage.setItem("user", JSON.stringify(userData));
     } catch (error) {
-      console.log(error);
+      console.error("Refresh user error:", error);
       await logout();
     }
   };
 
+  // Derive computed values from state
+  const isAuthenticated = !!user;
+  const isAdmin = user?.role === "admin";
+  const isEmployee = user?.role === "employee";
+
   const value: AuthContextType = {
     user,
-    token,
     isLoading,
-    isAuthenticated: !!token && !!user,
-    isAdmin: user?.role === "admin",
-    isEmployee: user?.role === "employee",
+    isAuthenticated,
+    isAdmin,
+    isEmployee,
     login,
     signup,
     logout,
