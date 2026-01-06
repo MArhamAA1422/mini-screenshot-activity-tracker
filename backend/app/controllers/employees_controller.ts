@@ -83,7 +83,6 @@ export default class EmployeesController {
             email: payload.email,
             password: payload.password,
             role: 'employee',
-            screenshotInterval: payload.screenshotInterval || 10,
          })
 
          return response.created({

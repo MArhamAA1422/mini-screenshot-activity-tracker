@@ -3,10 +3,10 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { employeeAPI } from "../../api/api";
 import { Search, UserPlus, LogOut, Users, Activity } from "lucide-react";
-import { format } from "date-fns";
 import { useAuth } from "../../contexts/AuthContext";
 import AddEmployeeModal from "../../components/admin/AddEmployeeModal";
 import type { Employee } from "../../utils/types";
+import { addHours, format, parseISO } from "date-fns";
 
 export default function AdminEmployeesPage() {
   const navigate = useNavigate();
@@ -245,7 +245,10 @@ export default function AdminEmployeesPage() {
                         <div className="text-sm text-gray-900">
                           {employee.last_screenshot_at
                             ? format(
-                                new Date(employee.last_screenshot_at),
+                                addHours(
+                                  parseISO(employee.last_screenshot_at),
+                                  -6
+                                ),
                                 "MMM d, yyyy HH:mm"
                               )
                             : "Never"}
